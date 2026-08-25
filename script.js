@@ -715,7 +715,7 @@ function renderPurchaseHistory() {
 }
 
 // ==============================================
-// 7. 100% RELIABLE ISOLATED PRINT ENGINE
+// 7. 100% RELIABLE MOBILE & PC DIRECT PRINT ENGINE
 // ==============================================
 function generatePrintHTML(order, mode) {
   let rowsHtml = '';
@@ -741,6 +741,7 @@ function generatePrintHTML(order, mode) {
       <html>
       <head>
         <meta charset="UTF-8">
+        <title>Thermal Bill</title>
         <style>
           @page { size: auto; margin: 0mm; }
           body { 
@@ -758,7 +759,7 @@ function generatePrintHTML(order, mode) {
           th { border-bottom: 1px dashed #000; padding: 3px 0; text-align: center; }
           .total-line { font-size: 13.5px; font-weight: bold; text-align: right; border-top: 1px dashed #000; padding-top: 4px; margin-top: 2px; }
           .qr-box { text-align: center; margin: 6px 0 4px 0; }
-          .qr-box img { width: 85px; height: 85px; margin: auto; }
+          .qr-box img { width: 85px; height: 85px; margin: auto; display: block; }
           .terms { font-size: 9px; border-top: 1px dashed #000; margin-top: 4px; padding-top: 4px; line-height: 1.2; text-align: left; }
         </style>
       </head>
@@ -804,6 +805,7 @@ function generatePrintHTML(order, mode) {
       <html>
       <head>
         <meta charset="UTF-8">
+        <title>Retail Invoice</title>
         <style>
           @page { size: auto; margin: 0mm; }
           body { 
@@ -867,28 +869,27 @@ function generatePrintHTML(order, mode) {
 }
 
 function triggerPrintEngine(orderRecord, mode) {
-  let printFrame = document.getElementById('printReceiptFrame');
-  if (!printFrame) {
-    printFrame = document.createElement('iframe');
-    printFrame.id = 'printReceiptFrame';
-    printFrame.style.position = 'fixed';
-    printFrame.style.right = '0';
-    printFrame.style.bottom = '0';
-    printFrame.style.width = '0';
-    printFrame.style.height = '0';
-    printFrame.style.border = '0';
-    document.body.appendChild(printFrame);
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) {
+    alert('कृपया ब्राउज़र में पॉप-अप (Pop-up) की अनुमति दें!');
+    return;
   }
 
-  const frameDoc = printFrame.contentWindow || printFrame.contentDocument.document || printFrame.contentDocument;
-  frameDoc.document.open();
-  frameDoc.document.write(generatePrintHTML(orderRecord, mode));
-  frameDoc.document.close();
+  const billHTML = generatePrintHTML(orderRecord, mode);
+  
+  printWindow.document.open();
+  printWindow.document.write(billHTML);
+  printWindow.document.close();
 
-  setTimeout(() => {
-    printFrame.contentWindow.focus();
-    printFrame.contentWindow.print();
-  }, 350);
+  printWindow.onload = function() {
+    setTimeout(() => {
+      printWindow.focus();
+      printWindow.print();
+      setTimeout(() => {
+        printWindow.close();
+      }, 1000);
+    }, 400);
+  };
 }
 
 function completeSaleAndPrint(mode, paymentType = 'CASH', customerData = null) {

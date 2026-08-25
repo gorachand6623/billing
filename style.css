@@ -667,15 +667,9 @@ td {
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
 }
 
-/* ==============================================
-   ISOLATED PRINT STYLES (PREVENTS APP SCREENSHOT)
-   ============================================== */
-#printReceiptFrame {
-  display: none;
-}
-
+/* Clean Print Base */
 @media print {
-  body > *:not(#printReceiptFrame) {
-    display: none !important;
+  body {
+    background: #ffffff !important;
   }
 }
