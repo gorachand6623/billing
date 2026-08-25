@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   --primary: #059669;
   --primary-hover: #047857;
   --primary-light: #ecfdf5;
@@ -425,13 +425,11 @@ td { padding: 9px 8px; border-bottom: 1px solid var(--card-border); text-align: 
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
 }
 
-/* Print View */
+/* ==============================================
+   SCREEN DISPLAY FOR PRINT WRAPPER
+   ============================================== */
 #printWrapper {
   display: none;
-  background: #ffffff;
-  width: 100%;
-  margin: 0;
-  padding: 0;
 }
 
 body.printing-mode > *:not(#printWrapper) {
@@ -445,12 +443,14 @@ body.printing-mode #printWrapper {
   width: 74mm;
   max-width: 74mm;
   margin: 0 auto;
-  padding: 4px 6px 0 6px;
+  padding: 4px 6px;
   font-family: 'Courier New', monospace, sans-serif;
   color: #000;
   background: #fff;
   page-break-inside: avoid;
   break-inside: avoid;
+  page-break-after: avoid;
+  break-after: avoid;
 }
 .thermal-box h2 { font-size: 15px; text-align: center; margin-bottom: 2px; }
 .thermal-box p { font-size: 10.5px; text-align: center; line-height: 1.25; margin-bottom: 2px; }
@@ -466,12 +466,14 @@ body.printing-mode #printWrapper {
   width: 100%;
   max-width: 210mm;
   margin: 0 auto;
-  padding: 16px 20px 0 20px;
+  padding: 16px 20px;
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   color: #000;
   background: #fff;
   page-break-inside: avoid;
   break-inside: avoid;
+  page-break-after: avoid;
+  break-after: avoid;
 }
 .a4-box .a4-header { display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 10px; }
 .a4-box table { width: 100%; border-collapse: collapse; font-size: 12px; margin: 8px 0; }
@@ -479,8 +481,43 @@ body.printing-mode #printWrapper {
 .a4-box td { border: 1px solid #000; padding: 6px; }
 .a4-box .total-box { font-size: 14.5px; font-weight: bold; text-align: right; margin-top: 6px; }
 
+/* ==============================================
+   100% RELIABLE MEDIA PRINT (HIDES APP SCREEN COMPLETELY)
+   ============================================== */
 @media print {
-  @page { size: auto; margin: 0mm !important; }
-  html, body { background: #ffffff !important; width: 100% !important; height: auto !important; margin: 0 !important; padding: 0 !important; }
-  #printWrapper { display: block !important; position: static !important; width: 100% !important; height: auto !important; }
+  @page {
+    size: auto;
+    margin: 0mm !important;
+  }
+  html, body {
+    background: #ffffff !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+  
+  /* HIDE ALL DASHBOARD & APP ELEMENTS */
+  #securityScreen, #mainApp, .header-bar, .stats-row, .tab-navigation, .tab-content, .modal-overlay {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  /* SHOW ONLY RECEIPT */
+  #printWrapper {
+    display: block !important;
+    visibility: visible !important;
+    position: static !important;
+    width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  #printWrapper * {
+    visibility: visible !important;
+  }
 }
