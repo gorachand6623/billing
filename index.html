@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>बेस्ट टू बेस्ट किराना स्टोर - 100% मोबाइल प्रिंट फिक्स</title>
+  <title>बेस्ट टू बेस्ट किराना स्टोर - 100% मोबाइल प्रिंटिंग</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -346,69 +346,65 @@
     }
 
     /* ==============================================
-       100% RELIABLE MOBILE & DESKTOP PRINT CSS
+       FULL-SCREEN PRINT ENGINE (GUARANTEED PREVIEW)
        ============================================== */
-    #print-container { display: none; }
+    #printWrapper {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: #ffffff;
+      z-index: 99999;
+      overflow-y: auto;
+      padding: 10px;
+    }
+
+    body.printing-mode > *:not(#printWrapper) {
+      display: none !important;
+    }
+    body.printing-mode #printWrapper {
+      display: block !important;
+    }
+
+    .thermal-box {
+      width: 76mm;
+      max-width: 100%;
+      margin: 0 auto;
+      padding: 8px;
+      font-family: 'Courier New', monospace, sans-serif;
+      color: #000;
+      background: #fff;
+    }
+    .thermal-box h2 { font-size: 16px; text-align: center; margin-bottom: 2px; }
+    .thermal-box p { font-size: 11px; text-align: center; line-height: 1.3; margin-bottom: 4px; }
+    .thermal-box .meta-line { display: flex; justify-content: space-between; font-size: 11px; border-bottom: 1px dashed #000; padding-bottom: 4px; margin: 6px 0; }
+    .thermal-box table { width: 100%; border-collapse: collapse; font-size: 11.5px; margin: 6px 0; }
+    .thermal-box th { border-bottom: 1px dashed #000; padding: 4px 0; text-align: center; }
+    .thermal-box td { border-bottom: 1px dotted #ccc; padding: 4px 0; text-align: center; }
+    .thermal-box .total-line { font-size: 14px; font-weight: bold; text-align: right; border-top: 1px dashed #000; padding-top: 6px; margin-top: 4px; }
+    .thermal-box .qr-print-box { text-align: center; margin: 8px 0; }
+    .thermal-box .qr-print-box img { width: 90px; height: 90px; border-radius: 4px; margin: auto; }
+    .thermal-box .terms-box { font-size: 9.5px; border-top: 1px dashed #000; margin-top: 6px; padding-top: 5px; line-height: 1.3; text-align: left; }
+
+    .a4-box {
+      width: 100%;
+      max-width: 210mm;
+      margin: 0 auto;
+      padding: 20px;
+      font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+      color: #000;
+      background: #fff;
+    }
+    .a4-box .a4-header { display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 14px; }
+    .a4-box table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin: 10px 0; }
+    .a4-box th { border: 1px solid #000; background: #f1f5f9; padding: 8px; }
+    .a4-box td { border: 1px solid #000; padding: 8px; }
+    .a4-box .total-box { font-size: 15px; font-weight: bold; text-align: right; margin-top: 8px; }
 
     @media print {
-      @page {
-        size: auto;
-        margin: 0mm;
-      }
-      html, body {
-        width: 100% !important;
-        height: auto !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        background: #ffffff !important;
-        overflow: visible !important;
-      }
-      #securityScreen, #mainApp {
-        display: none !important;
-      }
-      #print-container {
-        display: block !important;
-        visibility: visible !important;
-        width: 100% !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        color: #000000 !important;
-      }
-      #print-container * {
-        visibility: visible !important;
-      }
-
-      .thermal-view {
-        width: 76mm !important;
-        max-width: 76mm !important;
-        margin: 0 auto !important;
-        padding: 6px 8px !important;
-        font-family: 'Courier New', monospace, sans-serif !important;
-        color: #000 !important;
-      }
-      .thermal-view h2 { font-size: 16px; text-align: center; margin-bottom: 2px; }
-      .thermal-view p { font-size: 11px; text-align: center; line-height: 1.3; margin-bottom: 4px; }
-      .thermal-view .meta-line { display: flex; justify-content: space-between; font-size: 11px; border-bottom: 1px dashed #000; padding-bottom: 4px; margin: 6px 0; }
-      .thermal-view table { width: 100%; border-collapse: collapse; font-size: 11.5px; margin: 6px 0; }
-      .thermal-view th { border-bottom: 1px dashed #000; padding: 4px 0; text-align: center; }
-      .thermal-view td { border-bottom: 1px dotted #ccc; padding: 4px 0; text-align: center; }
-      .thermal-view .total-line { font-size: 14px; font-weight: bold; text-align: right; border-top: 1px dashed #000; padding-top: 6px; margin-top: 4px; }
-      .thermal-view .qr-print-box { text-align: center; margin: 8px 0; }
-      .thermal-view .qr-print-box img { width: 90px; height: 90px; border-radius: 4px; margin: auto; }
-      .thermal-view .terms-box { font-size: 9.5px; border-top: 1px dashed #000; margin-top: 6px; padding-top: 5px; line-height: 1.3; text-align: left; }
-
-      .a4-view {
-        width: 100% !important;
-        max-width: 210mm !important;
-        padding: 20px !important;
-        font-family: 'Plus Jakarta Sans', system-ui, sans-serif !important;
-        color: #000 !important;
-      }
-      .a4-view .a4-header { display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 14px; }
-      .a4-view table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin: 10px 0; }
-      .a4-view th { border: 1px solid #000; background: #f1f5f9; padding: 8px; }
-      .a4-view td { border: 1px solid #000; padding: 8px; }
-      .a4-view .total-box { font-size: 15px; font-weight: bold; text-align: right; margin-top: 8px; }
+      @page { size: auto; margin: 0; }
+      html, body { background: #fff !important; width: 100% !important; height: 100% !important; margin: 0 !important; padding: 0 !important; }
+      #printWrapper { position: static !important; width: 100% !important; padding: 0 !important; }
     }
   </style>
 </head>
@@ -812,10 +808,10 @@
       </div>
     </div>
 
-    <!-- DEDICATED PRINT CONTAINER -->
-    <div id="print-container"></div>
-
   </div>
+
+  <!-- 3. DEDICATED DIRECT FULLSCREEN PRINT WRAPPER -->
+  <div id="printWrapper"></div>
 
   <script>
     // ==============================================
@@ -860,7 +856,7 @@
     }
 
     // ==============================================
-    // MAIN DATA & POS STORAGE
+    // MAIN APP DATA & STORAGE
     // ==============================================
     let inventory = JSON.parse(localStorage.getItem('mandal_pos_stable')) || [
       { id: 101, name: 'चीनी (Sugar)', unit: 'Kg', costPrice: 38, price: 44, stock: 50 },
@@ -1144,7 +1140,7 @@
     }
 
     // ==============================================
-    // 100% RELIABLE MOBILE & DESKTOP PRINT LOGIC
+    // 100% RELIABLE OVERLAY PRINT ENGINE
     // ==============================================
     function generatePrintHTML(order, mode) {
       let rowsHtml = '';
@@ -1166,7 +1162,7 @@
 
       if (mode === 'thermal') {
         return `
-          <div class="thermal-view">
+          <div class="thermal-box">
             <h2>बेस्ट टू बेस्ट किराना स्टोर</h2>
             <p>बड़बाद, पूर्वी टुंडी, धनबाद (828109)<br>मो: 6204339748 | प्रो: गोराचाँद मंडल</p>
             <div class="meta-line">
@@ -1202,7 +1198,7 @@
         `;
       } else {
         return `
-          <div class="a4-view">
+          <div class="a4-box">
             <div class="a4-header">
               <div>
                 <h2 style="font-size:22px; font-weight:800; margin:0;">बेस्ट टू बेस्ट किराना स्टोर</h2>
@@ -1244,6 +1240,21 @@
           </div>
         `;
       }
+    }
+
+    function triggerPrintEngine(orderRecord, mode) {
+      const wrapper = document.getElementById('printWrapper');
+      wrapper.innerHTML = generatePrintHTML(orderRecord, mode);
+      document.body.classList.add('printing-mode');
+
+      // Safe Delay for Mobile Android Render
+      setTimeout(() => {
+        window.print();
+        setTimeout(() => {
+          document.body.classList.remove('printing-mode');
+          wrapper.innerHTML = '';
+        }, 500);
+      }, 350);
     }
 
     function completeSaleAndPrint(mode, paymentType = 'CASH', customerData = null) {
@@ -1295,25 +1306,14 @@
       incrementDailyInvoiceNumber();
       saveState();
 
-      // Render Print HTML into dedicated container
-      const printContainer = document.getElementById('print-container');
-      printContainer.innerHTML = generatePrintHTML(orderRecord, mode);
-
-      // 250ms Buffer so mobile browser finishes rendering before opening print preview
-      setTimeout(() => {
-        window.print();
-        clearBill();
-      }, 250);
+      triggerPrintEngine(orderRecord, mode);
+      clearBill();
     }
 
     function reprintOrder(billNo, mode) {
       const order = salesHistory.find(s => s.billNo === billNo);
       if (order) {
-        const printContainer = document.getElementById('print-container');
-        printContainer.innerHTML = generatePrintHTML(order, mode);
-        setTimeout(() => {
-          window.print();
-        }, 250);
+        triggerPrintEngine(order, mode);
       }
     }
 
