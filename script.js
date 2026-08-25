@@ -1,5 +1,32 @@
 ﻿// ==============================================
-// SECURITY PIN LOGIC
+// 1. FIREBASE CONFIG & INITIALIZATION
+// ==============================================
+const firebaseConfig = {
+  apiKey: "AIzaSyD775jRZe9ApSzxmo6u2ZVkeOz-Hbz_m5A",
+  authDomain: "best-to-best-kirana.firebaseapp.com",
+  projectId: "best-to-best-kirana",
+  storageBucket: "best-to-best-kirana.firebasestorage.app",
+  messagingSenderId: "1071667802267",
+  appId: "1:1071667802267:web:1162db2de517901185d63e"
+};
+
+let db = null;
+let isFirebaseReady = false;
+
+try {
+  if (typeof firebase !== 'undefined') {
+    if (firebase.apps.length === 0) {
+      firebase.initializeApp(firebaseConfig);
+    }
+    db = firebase.firestore();
+    isFirebaseReady = true;
+  }
+} catch (e) {
+  console.warn("Firebase Init Error:", e);
+}
+
+// ==============================================
+// 2. SECURITY PIN LOGIC
 // ==============================================
 let currentSecurityPin = localStorage.getItem('mandal_app_pin') || '1234';
 
@@ -8,7 +35,7 @@ function unlockApp() {
   if (enteredPin === currentSecurityPin) {
     document.getElementById('securityScreen').style.display = 'none';
     document.getElementById('mainApp').style.display = 'block';
-    renderUI();
+    initAppWithCloudSync();
   } else {
     alert('गलत पिन! कृपया सही 4-अंकों का पिन दर्ज करें।');
     document.getElementById('inputPinField').value = '';
@@ -30,9 +57,10 @@ function changePinPrompt() {
     if (newPin && newPin.trim().length === 4 && !isNaN(newPin)) {
       currentSecurityPin = newPin.trim();
       localStorage.setItem('mandal_app_pin', currentSecurityPin);
-      alert('सुरक्षा पिन सफलतापूर्वक बदल दिया गया! नया पिन: ' + currentSecurityPin);
+      saveState();
+      alert('सुरक्षा पिन बदल दिया गया! नया पिन: ' + currentSecurityPin);
     } else {
-      alert('अमान्य पिन! कृपया केवल 4 अंकों का नंबर दर्ज करें।');
+      alert('अमान्य पिन!');
     }
   } else if (oldPin !== null) {
     alert('गलत पुराना पिन!');
@@ -40,7 +68,7 @@ function changePinPrompt() {
 }
 
 // ==============================================
-// MAIN APP DATA & STORAGE
+// 3. MAIN DATA
 // ==============================================
 let inventory = JSON.parse(localStorage.getItem('mandal_pos_stable')) || [
   { id: 101, name: 'चीनी (Sugar)', unit: 'Kg', costPrice: 38, price: 44, stock: 50 },
@@ -59,13 +87,86 @@ let currentBill = [];
 let discountType = 'rs'; 
 let discountValue = 0;
 
-// 1-Hour Timer Variables
 let qrTimerInterval = null;
 let qrSecondsLeft = 3600; 
 let currentSessionRef = '';
 
+// ==============================================
+// 4. REALTIME SYNC
+// ==============================================
+function initAppWithCloudSync() {
+  renderUI();
+
+  if (isFirebaseReady && db) {
+    const statusBadge = document.getElementById('syncStatusBadge');
+    
+    try {
+      db.collection('kirana_store').doc('store_data').onSnapshot((doc) => {
+        if (doc && doc.exists) {
+          const cloudData = doc.data();
+          if (cloudData.inventory) inventory = cloudData.inventory;
+          if (cloudData.salesHistory) salesHistory = cloudData.salesHistory;
+          if (cloudData.purchaseHistory) purchaseHistory = cloudData.purchaseHistory;
+          if (cloudData.khataLedger) khataLedger = cloudData.khataLedger;
+          if (cloudData.upiID) upiID = cloudData.upiID;
+          if (cloudData.securityPin) {
+            currentSecurityPin = cloudData.securityPin;
+            localStorage.setItem('mandal_app_pin', currentSecurityPin);
+          }
+
+          localStorage.setItem('mandal_pos_stable', JSON.stringify(inventory));
+          localStorage.setItem('mandal_sales_stable', JSON.stringify(salesHistory));
+          localStorage.setItem('mandal_purchase_stable', JSON.stringify(purchaseHistory));
+          localStorage.setItem('mandal_khata_stable', JSON.stringify(khataLedger));
+          localStorage.setItem('mandal_upi_id', upiID);
+
+          if (statusBadge) statusBadge.innerHTML = '🟢 क्लाउड सिंक चालू';
+          renderUI();
+        } else {
+          saveState();
+        }
+      }, (err) => {
+        console.warn("Firestore listener error:", err);
+        if (statusBadge) statusBadge.innerHTML = '🟡 ऑफलाइन मोड';
+      });
+    } catch (e) {
+      console.warn("Sync setup error:", e);
+      if (statusBadge) statusBadge.innerHTML = '🟡 ऑफलाइन मोड';
+    }
+  }
+}
+
+function saveState() {
+  localStorage.setItem('mandal_pos_stable', JSON.stringify(inventory));
+  localStorage.setItem('mandal_sales_stable', JSON.stringify(salesHistory));
+  localStorage.setItem('mandal_purchase_stable', JSON.stringify(purchaseHistory));
+  localStorage.setItem('mandal_khata_stable', JSON.stringify(khataLedger));
+  localStorage.setItem('mandal_upi_id', upiID);
+
+  if (isFirebaseReady && db) {
+    try {
+      db.collection('kirana_store').doc('store_data').set({
+        inventory: inventory,
+        salesHistory: salesHistory,
+        purchaseHistory: purchaseHistory,
+        khataLedger: khataLedger,
+        upiID: upiID,
+        securityPin: currentSecurityPin,
+        lastUpdated: new Date().toISOString()
+      }, { merge: true }).catch(err => console.error("Cloud Save Error:", err));
+    } catch(e) {
+      console.error(e);
+    }
+  }
+
+  renderUI();
+}
+
+// ==============================================
+// 5. HELPER FUNCTIONS
+// ==============================================
 function getProductEmoji(name) {
-  const n = name.toLowerCase();
+  const n = (name || '').toLowerCase();
   if (n.includes('तेल') || n.includes('oil') || n.includes('रिफाइंड')) return '🛢️';
   if (n.includes('दाल') || n.includes('चावल') || n.includes('आटा') || n.includes('गेहूं') || n.includes('सूजी') || n.includes('मैदा')) return '🌾';
   if (n.includes('चीनी') || n.includes('sugar') || n.includes('गुड़') || n.includes('मीठा')) return '🍬';
@@ -123,10 +224,13 @@ function switchTab(tabId, btnId) {
 
 function updateClock() {
   const now = new Date();
-  document.getElementById('liveClock').innerText = now.toLocaleString('hi-IN', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
-  });
+  const clk = document.getElementById('liveClock');
+  if (clk) {
+    clk.innerText = now.toLocaleString('hi-IN', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
+    });
+  }
 }
 setInterval(updateClock, 1000);
 updateClock();
@@ -137,16 +241,9 @@ function setUPIPrompt() {
     upiID = newUPI.trim();
     localStorage.setItem('mandal_upi_id', upiID);
     document.getElementById('upiIdDisplay').innerText = 'UPI: ' + upiID;
+    saveState();
     updateDynamicQRCode();
   }
-}
-
-function saveState() {
-  localStorage.setItem('mandal_pos_stable', JSON.stringify(inventory));
-  localStorage.setItem('mandal_sales_stable', JSON.stringify(salesHistory));
-  localStorage.setItem('mandal_purchase_stable', JSON.stringify(purchaseHistory));
-  localStorage.setItem('mandal_khata_stable', JSON.stringify(khataLedger));
-  renderUI();
 }
 
 function renderUI() {
@@ -161,19 +258,27 @@ function renderUI() {
   const lowStock = inventory.filter(p => p.stock <= 5).length;
   const invNo = getDailyInvoiceNumber();
   const today = getTodayKey();
-  const todayPurchases = purchaseHistory.filter(p => p.dateKey === today).reduce((acc, cur) => acc + cur.totalCost, 0);
-  const totalUdhar = khataLedger.reduce((acc, cur) => acc + cur.balance, 0);
+  const todayPurchases = purchaseHistory.filter(p => p.dateKey === today).reduce((acc, cur) => acc + (cur.totalCost || 0), 0);
+  const totalUdhar = khataLedger.reduce((acc, cur) => acc + (cur.balance || 0), 0);
 
-  document.getElementById('lowStockCount').innerText = lowStock;
-  document.getElementById('statTodayPurchases').innerText = todayPurchases.toFixed(2);
-  document.getElementById('statTotalUdhar').innerText = totalUdhar.toFixed(2);
-  document.getElementById('activeBillNo').innerText = 'INV-' + invNo;
-  document.getElementById('upiIdDisplay').innerText = 'UPI: ' + upiID;
+  const lowStockEl = document.getElementById('lowStockCount');
+  if (lowStockEl) lowStockEl.innerText = lowStock;
+  
+  const purchasesEl = document.getElementById('statTodayPurchases');
+  if (purchasesEl) purchasesEl.innerText = todayPurchases.toFixed(2);
+  
+  const udharEl = document.getElementById('statTotalUdhar');
+  if (udharEl) udharEl.innerText = totalUdhar.toFixed(2);
+  
+  const billNoEl = document.getElementById('activeBillNo');
+  if (billNoEl) billNoEl.innerText = 'INV-' + invNo;
+  
+  const upiEl = document.getElementById('upiIdDisplay');
+  if (upiEl) upiEl.innerText = 'UPI: ' + upiID;
   
   updateDynamicQRCode();
 }
 
-// 100% Offline Reliable QR Drawer
 function drawQRCodeToElement(containerId, textToEncode, width = 100, height = 100) {
   const container = document.getElementById(containerId);
   if (!container) return;
@@ -207,16 +312,22 @@ function getOneTimeUPIString(amount, sessionRef) {
 }
 
 function updateDynamicQRCode() {
-  const grandTotal = parseFloat(document.getElementById('grandTotal').innerText) || 0;
-  document.getElementById('qrAmountDisplay').innerText = grandTotal.toFixed(2);
+  const grandTotalEl = document.getElementById('grandTotal');
+  const grandTotal = grandTotalEl ? (parseFloat(grandTotalEl.innerText) || 0) : 0;
+  
+  const qrAmtEl = document.getElementById('qrAmountDisplay');
+  if (qrAmtEl) qrAmtEl.innerText = grandTotal.toFixed(2);
+  
   const badge = document.getElementById('qrExpiryBadge');
 
   if (grandTotal <= 0) {
     const staticUpi = `upi://pay?pa=${encodeURIComponent(upiID)}&pn=${encodeURIComponent('Best To Best Kirana')}&cu=INR`;
     drawQRCodeToElement('screenQRCodeContainer', staticUpi, 90, 90);
     if (qrTimerInterval) clearInterval(qrTimerInterval);
-    badge.innerHTML = '🟢 परमानेंट काउंटर QR';
-    badge.classList.remove('expired');
+    if (badge) {
+      badge.innerHTML = '🟢 परमानेंट काउंटर QR';
+      badge.classList.remove('expired');
+    }
     return;
   }
 
@@ -235,26 +346,28 @@ function startOneHourExpiryTimer() {
 
   const badge = document.getElementById('qrExpiryBadge');
   const timerDisplay = document.getElementById('qrTimerDisplay');
-  badge.classList.remove('expired');
+  if (badge) badge.classList.remove('expired');
 
   qrTimerInterval = setInterval(() => {
     qrSecondsLeft--;
-    
     if (qrSecondsLeft <= 0) {
       clearInterval(qrTimerInterval);
-      badge.classList.add('expired');
-      badge.innerHTML = '❌ QR एक्सपायर (नया बिल बनाएं)';
+      if (badge) {
+        badge.classList.add('expired');
+        badge.innerHTML = '❌ QR एक्सपायर (नया बिल बनाएं)';
+      }
       currentSessionRef = '';
     } else {
       const m = String(Math.floor(qrSecondsLeft / 60)).padStart(2, '0');
       const s = String(qrSecondsLeft % 60).padStart(2, '0');
-      timerDisplay.innerText = `${m}:${s}`;
+      if (timerDisplay) timerDisplay.innerText = `${m}:${s}`;
     }
   }, 1000);
 }
 
 function renderCatalog(products) {
   const grid = document.getElementById('productGrid');
+  if (!grid) return;
   grid.innerHTML = '';
   products.forEach(p => {
     const isOut = p.stock <= 0;
@@ -349,7 +462,6 @@ function removeFromBill(id) {
   renderBill();
 }
 
-// Custom Discount Logic (% or ₹)
 function onDiscountTypeChange() {
   discountType = document.getElementById('discountType').value;
   renderBill(false);
@@ -372,6 +484,7 @@ function calculateActualDiscount(subtotal) {
 
 function renderBill(rebuildInputs = true) {
   const tbody = document.getElementById('billBody');
+  if (!tbody) return;
   let subtotal = 0;
   let totalItems = 0;
 
@@ -410,24 +523,30 @@ function renderBill(rebuildInputs = true) {
 
   const actualDisc = calculateActualDiscount(subtotal);
   const finalPayable = Math.max(0, subtotal - actualDisc);
-  document.getElementById('grandTotal').innerText = finalPayable.toFixed(2);
-  document.getElementById('billItemCount').innerText = totalItems;
+  
+  const grandEl = document.getElementById('grandTotal');
+  if (grandEl) grandEl.innerText = finalPayable.toFixed(2);
+  
+  const countEl = document.getElementById('billItemCount');
+  if (countEl) countEl.innerText = totalItems;
 }
 
 function clearBill() {
   currentBill = [];
   discountValue = 0;
-  document.getElementById('customDiscountInput').value = '';
+  const discInp = document.getElementById('customDiscountInput');
+  if (discInp) discInp.value = '';
   currentSessionRef = '';
   if (qrTimerInterval) clearInterval(qrTimerInterval);
   renderBill();
 }
 
 // ==========================================================
-// ALL-IN-ONE BULK STOCK PURCHASE (EXCEL SHEET STYLE)
+// 6. BULK STOCK ENTRY SHEET
 // ==========================================================
 function renderBulkPurchaseSheet(products = inventory) {
   const tbody = document.getElementById('bulkPurchaseSheetBody');
+  if (!tbody) return;
   tbody.innerHTML = '';
 
   products.forEach((p, idx) => {
@@ -479,7 +598,8 @@ function calculateBulkSummary() {
     }
   });
 
-  document.getElementById('bulkTotalSummaryCost').innerText = grandBulkCost.toFixed(2);
+  const sumCostEl = document.getElementById('bulkTotalSummaryCost');
+  if (sumCostEl) sumCostEl.innerText = grandBulkCost.toFixed(2);
 }
 
 function resetBulkSheetInputs() {
@@ -487,7 +607,8 @@ function resetBulkSheetInputs() {
     const qtyInput = document.getElementById(`bulk_qty_${p.id}`);
     if (qtyInput) qtyInput.value = '';
   });
-  document.getElementById('bulkSupplierName').value = '';
+  const supInp = document.getElementById('bulkSupplierName');
+  if (supInp) supInp.value = '';
   calculateBulkSummary();
 }
 
@@ -511,7 +632,6 @@ function saveAllBulkSheetStock() {
         p.stock = parseFloat((p.stock + addedQty).toFixed(3));
         if (!isNaN(newRate) && newRate >= 0) p.costPrice = newRate;
 
-        // Record into history
         purchaseHistory.unshift({
           id: Date.now() + Math.random(),
           dateKey: getTodayKey(),
@@ -530,23 +650,22 @@ function saveAllBulkSheetStock() {
   });
 
   if (updatedCount === 0) {
-    alert('कृपया कम से कम एक सामान में नई खरीदी मात्रा (Qty) भरें!');
+    alert('कृपया कम से कम एक सामान में नई खरीदी मात्रा भरें!');
     return;
   }
 
-  alert(`सफलतापूर्वक ${updatedCount} सामानों का नया स्टॉक इन्वेंट्री में जुड़ गया!`);
+  alert(`सफलतापूर्वक ${updatedCount} सामानों का नया स्टॉक जुड़ गया!`);
   resetBulkSheetInputs();
   saveState();
 }
 
-// Editable Purchase History
 function editPurchaseRecord(purchaseId) {
   const p = purchaseHistory.find(item => item.id === purchaseId);
   if (!p) return;
 
-  const newQty = prompt(`"${p.productName}" की नई खरीदी गई मात्रा दर्ज करें:`, p.qty);
+  const newQty = prompt(`"${p.productName}" की नई खरीदी मात्रा दर्ज करें:`, p.qty);
   if (newQty === null) return;
-  const newRate = prompt(`"${p.productName}" का नया खरीद रेट प्रति इकाई (₹):`, p.rate);
+  const newRate = prompt(`"${p.productName}" का नया खरीद रेट (₹):`, p.rate);
   if (newRate === null) return;
 
   const parsedQty = parseFloat(newQty);
@@ -557,7 +676,6 @@ function editPurchaseRecord(purchaseId) {
     return;
   }
 
-  // Adjust inventory
   const prod = inventory.find(i => i.name === p.productName);
   if (prod) {
     const qtyDiff = parsedQty - p.qty;
@@ -570,11 +688,12 @@ function editPurchaseRecord(purchaseId) {
   p.totalCost = parseFloat((parsedQty * parsedRate).toFixed(2));
 
   saveState();
-  alert('खरीददारी हिसाब सफलतापूर्वक सुधार लिया गया!');
+  alert('खरीददारी हिसाब सुधर गया!');
 }
 
 function renderPurchaseHistory() {
   const tbody = document.getElementById('purchaseHistoryBody');
+  if (!tbody) return;
   tbody.innerHTML = '';
   if (purchaseHistory.length === 0) {
     tbody.innerHTML = `<tr><td colspan="7" style="padding:15px; color:var(--text-muted);">कोई खरीद रिकॉर्ड उपलब्ध नहीं है।</td></tr>`;
@@ -588,14 +707,16 @@ function renderPurchaseHistory() {
       <td>${p.supplier}</td>
       <td style="font-weight:800; color:var(--primary);">${p.qty} ${p.unit}</td>
       <td>₹${p.rate}</td>
-      <td style="font-weight:800; color:var(--accent-orange);">₹${p.totalCost.toFixed(2)}</td>
+      <td style="font-weight:800; color:var(--accent-orange);">₹${(p.totalCost || 0).toFixed(2)}</td>
       <td><button class="action-btn edit" onclick="editPurchaseRecord(${p.id})">✎ सुधार करें</button></td>
     `;
     tbody.appendChild(tr);
   });
 }
 
-// Single-Page Direct Print Engine
+// ==============================================
+// 7. PRINT & CHECKOUT
+// ==============================================
 function generatePrintHTML(order, mode) {
   let rowsHtml = '';
   order.items.forEach((item, idx) => {
@@ -697,6 +818,7 @@ function generatePrintHTML(order, mode) {
 
 function triggerPrintEngine(orderRecord, mode) {
   const wrapper = document.getElementById('printWrapper');
+  if (!wrapper) return;
   wrapper.innerHTML = generatePrintHTML(orderRecord, mode);
   
   const upiUrl = getOneTimeUPIString(orderRecord.grandTotal, orderRecord.billNo);
@@ -780,6 +902,7 @@ function reprintOrder(billNo, mode) {
 // Mandi Re-Order List
 function renderMandiOrderTable() {
   const tbody = document.getElementById('mandiOrderTableBody');
+  if (!tbody) return;
   tbody.innerHTML = '';
   
   const lowStockItems = inventory.filter(p => p.stock <= 5);
@@ -892,6 +1015,7 @@ function receiveKhataPayment() {
 
 function renderKhataTable(list = khataLedger) {
   const tbody = document.getElementById('khataTableBody');
+  if (!tbody) return;
   tbody.innerHTML = '';
   list.forEach((k, idx) => {
     const tr = document.createElement('tr');
@@ -899,7 +1023,7 @@ function renderKhataTable(list = khataLedger) {
       <td>${idx + 1}</td>
       <td style="text-align:left; font-weight:700;">${k.name}</td>
       <td>${k.phone || '-'}</td>
-      <td style="font-weight:800; color:var(--danger);">₹${k.balance.toFixed(2)}</td>
+      <td style="font-weight:800; color:var(--danger);">₹${(k.balance || 0).toFixed(2)}</td>
       <td>${k.lastUpdated}</td>
       <td>
         ${k.phone ? `<button class="action-btn whatsapp" onclick="sendWhatsAppReminder('${k.name}', '${k.phone}', ${k.balance})">📲 तकादा</button>` : '-'}
@@ -930,14 +1054,15 @@ function filterKhataTable() {
 // Sales Report
 function renderSalesReport() {
   const filterInput = document.getElementById('salesFilterDate');
-  if (!filterInput.value) filterInput.value = getTodayKey();
+  if (filterInput && !filterInput.value) filterInput.value = getTodayKey();
 
-  const selectedDate = filterInput.value;
+  const selectedDate = filterInput ? filterInput.value : getTodayKey();
   const filteredSales = salesHistory.filter(s => s.dateKey === selectedDate);
   
   let totSales = 0;
   let totProfit = 0;
   const tbody = document.getElementById('salesHistoryBody');
+  if (!tbody) return;
   tbody.innerHTML = '';
 
   filteredSales.forEach(order => {
@@ -964,24 +1089,33 @@ function renderSalesReport() {
   const today = getTodayKey();
   const todaySales = salesHistory.filter(s => s.dateKey === today).reduce((acc, cur) => acc + cur.grandTotal, 0);
 
-  document.getElementById('statTodaySales').innerText = todaySales.toFixed(2);
-  document.getElementById('repTotalSales').innerText = totSales.toFixed(2);
-  document.getElementById('repTotalProfit').innerText = totProfit.toFixed(2);
-  document.getElementById('repTotalOrders').innerText = filteredSales.length;
+  const statSalesEl = document.getElementById('statTodaySales');
+  if (statSalesEl) statSalesEl.innerText = todaySales.toFixed(2);
+  
+  const repSalesEl = document.getElementById('repTotalSales');
+  if (repSalesEl) repSalesEl.innerText = totSales.toFixed(2);
+  
+  const repProfEl = document.getElementById('repTotalProfit');
+  if (repProfEl) repProfEl.innerText = totProfit.toFixed(2);
+  
+  const repOrdersEl = document.getElementById('repTotalOrders');
+  if (repOrdersEl) repOrdersEl.innerText = filteredSales.length;
 }
 
 function setTodaySalesFilter() {
-  document.getElementById('salesFilterDate').value = getTodayKey();
+  const filterInput = document.getElementById('salesFilterDate');
+  if (filterInput) filterInput.value = getTodayKey();
   renderSalesReport();
 }
 
 // Inventory & Products
 function renderInventoryTable(products) {
   const tbody = document.getElementById('inventoryTableBody');
+  if (!tbody) return;
   tbody.innerHTML = '';
   products.forEach((p, idx) => {
     const isLow = p.stock <= 5;
-    const profit = (p.price - p.costPrice).toFixed(2);
+    const profit = ((p.price || 0) - (p.costPrice || 0)).toFixed(2);
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${idx + 1}</td>
@@ -1105,7 +1239,7 @@ function importBackup(event) {
         if (data.invoiceDate) localStorage.setItem('mandal_inv_date', data.invoiceDate);
         if (data.invoiceSeq) localStorage.setItem('mandal_inv_seq', data.invoiceSeq);
         saveState();
-        alert('बैकअप डेटा सफलतापूर्वक लोड हो गया!');
+        alert('बैकअप डेटा लोड हो गया!');
       }
     } catch(err) {
       alert('अमान्य बैकअप फाइल!');
@@ -1113,3 +1247,12 @@ function importBackup(event) {
   };
   reader.readAsText(file);
 }
+
+// Fallback auto-init for direct local run
+window.addEventListener('DOMContentLoaded', () => {
+  const secScreen = document.getElementById('securityScreen');
+  if (secScreen && secScreen.style.display !== 'none') {
+    const pinInp = document.getElementById('inputPinField');
+    if (pinInp) pinInp.focus();
+  }
+});
