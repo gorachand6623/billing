@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>बेस्ट टू बेस्ट किराना स्टोर - POS व इन्वेंट्री</title>
+  <title>बेस्ट टू बेस्ट किराना स्टोर - बल्क स्टॉक POS</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
 
@@ -39,6 +40,7 @@
         <div class="backup-btn-group">
           <button class="btn-backup" onclick="exportBackup()">📥 बैकअप लें</button>
           <button class="btn-backup" onclick="document.getElementById('importFile').click()">📤 लोड करें</button>
+          <button class="btn-backup" onclick="setUPIPrompt()">⚙️ UPI ID बदलें</button>
           <button class="btn-backup" onclick="changePinPrompt()">🔑 पिन बदलें</button>
           <button class="btn-backup" style="background:rgba(225,29,72,0.3); border-color:#fecdd3;" onclick="lockApp()">🔒 लॉक करें</button>
           <input type="file" id="importFile" style="display:none" accept=".json" onchange="importBackup(event)">
@@ -84,7 +86,7 @@
       <button class="tab-btn" id="btn-sales" onclick="switchTab('sales-report-tab', 'btn-sales')"><span>📊</span> 2. बिक्री रिपोर्ट</button>
       <button class="tab-btn" id="btn-mandi" onclick="switchTab('mandi-tab', 'btn-mandi')"><span>📝</span> 3. मंडी री-ऑर्डर लिस्ट</button>
       <button class="tab-btn" id="btn-khata" onclick="switchTab('khata-tab', 'btn-khata')"><span>📕</span> 4. ग्राहक उधारी खाता</button>
-      <button class="tab-btn" id="btn-purchase" onclick="switchTab('purchase-tab', 'btn-purchase')"><span>🚚</span> 5. माल खरीद (स्टॉक)</button>
+      <button class="tab-btn" id="btn-purchase" onclick="switchTab('purchase-tab', 'btn-purchase')"><span>🚚</span> 5. माल खरीद (एक साथ एंट्री)</button>
       <button class="tab-btn" id="btn-inventory" onclick="switchTab('inventory-tab', 'btn-inventory')"><span>📦</span> 6. इन्वेंट्री व रेट</button>
       <button class="tab-btn" id="btn-add" onclick="switchTab('add-product-tab', 'btn-add')"><span>➕</span> 7. नया सामान</button>
     </div>
@@ -110,7 +112,7 @@
             <span style="font-size:13px; color:var(--primary); font-weight:800;" id="activeBillNo">INV-1</span>
           </div>
 
-          <div class="table-container" style="max-height: 230px; overflow-y: auto;">
+          <div class="table-container" style="max-height: 220px; overflow-y: auto;">
             <table>
               <thead>
                 <tr>
@@ -126,24 +128,32 @@
             </table>
           </div>
 
+          <!-- Discount & Bill Summary -->
           <div class="bill-summary">
             <div>
               <div style="font-size:11px; color:var(--text-muted); font-weight:700;">आइटम: <b id="billItemCount">0</b></div>
-              <button class="shortcut-btn" onclick="applyDiscount(10)">-₹10 छूट</button>
+              <div class="discount-box-row">
+                <select id="discountType" class="discount-select" onchange="onDiscountTypeChange()">
+                  <option value="rs">₹ (रुपये)</option>
+                  <option value="per">% (प्रतिशत)</option>
+                </select>
+                <input type="number" step="any" id="customDiscountInput" class="discount-input" placeholder="छूट" oninput="onCustomDiscountChange(this.value)">
+              </div>
             </div>
-            <div>
+            <div style="text-align:right;">
               <div style="font-size:11px; color:var(--text-muted); font-weight:700;">कुल देय राशि:</div>
               <div style="font-size:24px; font-weight:800; color:var(--dark-surface);">₹<span id="grandTotal">0.00</span></div>
             </div>
           </div>
 
-          <!-- Permanent Static UPI QR Box -->
-          <div class="qr-pay-panel">
-            <img id="screenQRImg" class="qr-img" src="" alt="UPI QR Code">
+          <!-- 1-Hour Expiring UPI QR Box -->
+          <div class="qr-pay-panel" id="qrPanelBox">
+            <div id="screenQRCodeContainer" class="qr-canvas-holder"></div>
             <div>
-              <div style="font-size:12.5px; font-weight:800; color:var(--dark-surface);">दुकान का UPI QR कोड</div>
+              <div style="font-size:12.5px; font-weight:800; color:var(--dark-surface);">1-टाइम सिक्योर UPI QR</div>
               <div style="font-size:11px; color:var(--text-muted);" id="upiIdDisplay">UPI: 6204339748-3@ybl</div>
-              <div style="font-size:11px; color:var(--primary); font-weight:700; margin-top:2px;">ग्राहक स्कैन करके भुगतान कर सकते हैं</div>
+              <div style="font-size:12px; color:var(--primary); font-weight:800; margin-top:2px;">सटीक देय: ₹<span id="qrAmountDisplay">0.00</span></div>
+              <div class="timer-badge" id="qrExpiryBadge">⏳ वैध समय: <span id="qrTimerDisplay">60:00</span></div>
             </div>
           </div>
 
@@ -276,36 +286,50 @@
       </div>
     </div>
 
-    <!-- TAB 5: PURCHASE STOCK ENTRY -->
+    <!-- TAB 5: ALL-IN-ONE BULK STOCK ENTRY SHEET -->
     <div id="purchase-tab" class="tab-content">
-      <div class="card" style="margin-bottom: 14px;">
-        <div class="card-title"><span>+ नया माल खरीदा (स्टॉक जोड़ें)</span></div>
-        <div class="form-grid">
-          <div class="form-group">
-            <label>सामान चुनें</label>
-            <select id="buyProductSelect" onchange="onPurchaseProductSelect()"></select>
-          </div>
-          <div class="form-group">
-            <label>सप्लायर / महाजन का नाम</label>
-            <input type="text" id="buySupplier" placeholder="उदा: मंडी / गुप्ता ट्रेडर्स">
-          </div>
-          <div class="form-group">
-            <label>खरीदी मात्रा (Stock Added)</label>
-            <input type="number" step="any" id="buyQty" placeholder="उदा: 50">
-          </div>
-          <div class="form-group">
-            <label>खरीद दर प्रति इकाई (₹)</label>
-            <input type="number" step="any" id="buyRate" placeholder="उदा: 38">
+      
+      <!-- 1. Bulk Purchase Grid Entry -->
+      <div class="card" style="margin-bottom: 16px;">
+        <div class="card-title">
+          <span>📦 थोक माल खरीद (सभी सामानों का स्टॉक एक साथ भरें)</span>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <input type="text" id="bulkSupplierName" placeholder="महाजन / मंडी का नाम (उदा: गुप्ता ट्रेडर्स)" style="padding:6px 12px; border:1.5px solid var(--card-border); border-radius:6px; font-size:12.5px; font-weight:700; width:250px;">
+            <input type="text" id="searchBulkPurchase" placeholder="🔍 सामान खोजें..." onkeyup="filterBulkPurchaseSheet()" style="padding:6px 10px; border:1.5px solid var(--card-border); border-radius:6px; font-size:12px; width:150px;">
           </div>
         </div>
-        <div style="margin-top: 12px;">
-          <button class="btn btn-primary" style="width:100%;" onclick="recordStockPurchase()">🚚 नया माल इन्वेंट्री में जोड़ें व सुरक्षित करें</button>
+
+        <div class="table-container" style="max-height: 380px; overflow-y: auto; border: 1.5px solid var(--card-border); border-radius: var(--radius-md);">
+          <table>
+            <thead>
+              <tr style="background:#f8fafc; position:sticky; top:0; z-index:2;">
+                <th>क्र.</th>
+                <th style="text-align:left;">सामान का नाम</th>
+                <th>वर्तमान स्टॉक</th>
+                <th style="background:#f0fdf4; color:#166534;">+ नई खरीदी मात्रा</th>
+                <th style="background:#eff6ff; color:#1e40af;">नया खरीद रेट (CP ₹)</th>
+                <th>लागत (₹)</th>
+              </tr>
+            </thead>
+            <tbody id="bulkPurchaseSheetBody"></tbody>
+          </table>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 14px; background:#f8fafc; padding:12px 16px; border-radius:8px; border:1px solid #e2e8f0;">
+          <div style="font-size:13.5px; font-weight:800; color:var(--dark-surface);">
+            कुल माल खरीद लागत: <span style="color:var(--primary); font-size:16px;">₹<span id="bulkTotalSummaryCost">0.00</span></span>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-primary" style="padding:12px 20px; font-size:14px;" onclick="saveAllBulkSheetStock()">💾 सभी भरे गए सामान का नया स्टॉक एक साथ जोड़ें</button>
+            <button class="btn btn-danger" onclick="resetBulkSheetInputs()">रीसेट करें</button>
+          </div>
         </div>
       </div>
 
+      <!-- 2. Purchase History -->
       <div class="card">
-        <div class="card-title"><span>खरीददारी हिसाब (Purchase History)</span></div>
-        <div class="table-container" style="max-height: 320px; overflow-y: auto;">
+        <div class="card-title"><span>खरीददारी हिसाब (Purchase History - सुधार योग्य)</span></div>
+        <div class="table-container" style="max-height: 300px; overflow-y: auto;">
           <table>
             <thead>
               <tr>
@@ -315,6 +339,7 @@
                 <th>मात्रा</th>
                 <th>दर (₹)</th>
                 <th>लागत (₹)</th>
+                <th>सुधार (Edit)</th>
               </tr>
             </thead>
             <tbody id="purchaseHistoryBody"></tbody>

@@ -40,7 +40,7 @@ function changePinPrompt() {
 }
 
 // ==============================================
-// MAIN DATA & POS STORAGE
+// MAIN APP DATA & STORAGE
 // ==============================================
 let inventory = JSON.parse(localStorage.getItem('mandal_pos_stable')) || [
   { id: 101, name: 'चीनी (Sugar)', unit: 'Kg', costPrice: 38, price: 44, stock: 50 },
@@ -56,7 +56,13 @@ let khataLedger = JSON.parse(localStorage.getItem('mandal_khata_stable')) || [];
 let upiID = localStorage.getItem('mandal_upi_id') || '6204339748-3@ybl';
 
 let currentBill = [];
-let billDiscount = 0;
+let discountType = 'rs'; 
+let discountValue = 0;
+
+// 1-Hour Timer Variables
+let qrTimerInterval = null;
+let qrSecondsLeft = 3600; 
+let currentSessionRef = '';
 
 function getProductEmoji(name) {
   const n = name.toLowerCase();
@@ -109,6 +115,10 @@ function switchTab(tabId, btnId) {
   if (tabId === 'mandi-tab') renderMandiOrderTable();
   if (tabId === 'khata-tab') renderKhataTable();
   if (tabId === 'sales-report-tab') renderSalesReport();
+  if (tabId === 'purchase-tab') {
+    renderBulkPurchaseSheet();
+    renderPurchaseHistory();
+  }
 }
 
 function updateClock() {
@@ -127,7 +137,7 @@ function setUPIPrompt() {
     upiID = newUPI.trim();
     localStorage.setItem('mandal_upi_id', upiID);
     document.getElementById('upiIdDisplay').innerText = 'UPI: ' + upiID;
-    updateStaticQRCode();
+    updateDynamicQRCode();
   }
 }
 
@@ -142,7 +152,7 @@ function saveState() {
 function renderUI() {
   renderCatalog(inventory);
   renderInventoryTable(inventory);
-  renderPurchaseSelect();
+  renderBulkPurchaseSheet();
   renderPurchaseHistory();
   renderSalesReport();
   renderKhataTable();
@@ -160,17 +170,87 @@ function renderUI() {
   document.getElementById('activeBillNo').innerText = 'INV-' + invNo;
   document.getElementById('upiIdDisplay').innerText = 'UPI: ' + upiID;
   
-  updateStaticQRCode();
+  updateDynamicQRCode();
 }
 
-function getStaticUPIString() {
-  return `upi://pay?pa=${encodeURIComponent(upiID)}&pn=${encodeURIComponent('Best To Best Kirana')}&cu=INR`;
+// 100% Offline Reliable QR Drawer
+function drawQRCodeToElement(containerId, textToEncode, width = 100, height = 100) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = '';
+  
+  try {
+    if (typeof QRCode !== 'undefined') {
+      new QRCode(container, {
+        text: textToEncode,
+        width: width,
+        height: height,
+        colorDark: "#000000",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.M
+      });
+    } else {
+      const img = document.createElement('img');
+      img.src = `https://api.qrserver.com/v1/create-qr-code/?size=${width}x${height}&data=${encodeURIComponent(textToEncode)}`;
+      img.style.width = width + 'px';
+      img.style.height = height + 'px';
+      container.appendChild(img);
+    }
+  } catch (err) {
+    console.error("QR Error:", err);
+  }
 }
 
-function updateStaticQRCode() {
-  const qrImg = document.getElementById('screenQRImg');
-  const upiUrl = getStaticUPIString();
-  qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(upiUrl)}`;
+function getOneTimeUPIString(amount, sessionRef) {
+  const amtStr = parseFloat(amount || 0).toFixed(2);
+  return `upi://pay?pa=${encodeURIComponent(upiID)}&pn=${encodeURIComponent('Best To Best Kirana')}&am=${amtStr}&cu=INR&tr=${encodeURIComponent(sessionRef)}&tn=${encodeURIComponent('Bill ' + sessionRef)}`;
+}
+
+function updateDynamicQRCode() {
+  const grandTotal = parseFloat(document.getElementById('grandTotal').innerText) || 0;
+  document.getElementById('qrAmountDisplay').innerText = grandTotal.toFixed(2);
+  const badge = document.getElementById('qrExpiryBadge');
+
+  if (grandTotal <= 0) {
+    const staticUpi = `upi://pay?pa=${encodeURIComponent(upiID)}&pn=${encodeURIComponent('Best To Best Kirana')}&cu=INR`;
+    drawQRCodeToElement('screenQRCodeContainer', staticUpi, 90, 90);
+    if (qrTimerInterval) clearInterval(qrTimerInterval);
+    badge.innerHTML = '🟢 परमानेंट काउंटर QR';
+    badge.classList.remove('expired');
+    return;
+  }
+
+  if (!currentSessionRef || qrSecondsLeft <= 0) {
+    currentSessionRef = 'INV' + getDailyInvoiceNumber() + '-' + Date.now().toString().slice(-4);
+    startOneHourExpiryTimer();
+  }
+
+  const upiUrl = getOneTimeUPIString(grandTotal, currentSessionRef);
+  drawQRCodeToElement('screenQRCodeContainer', upiUrl, 90, 90);
+}
+
+function startOneHourExpiryTimer() {
+  if (qrTimerInterval) clearInterval(qrTimerInterval);
+  qrSecondsLeft = 3600;
+
+  const badge = document.getElementById('qrExpiryBadge');
+  const timerDisplay = document.getElementById('qrTimerDisplay');
+  badge.classList.remove('expired');
+
+  qrTimerInterval = setInterval(() => {
+    qrSecondsLeft--;
+    
+    if (qrSecondsLeft <= 0) {
+      clearInterval(qrTimerInterval);
+      badge.classList.add('expired');
+      badge.innerHTML = '❌ QR एक्सपायर (नया बिल बनाएं)';
+      currentSessionRef = '';
+    } else {
+      const m = String(Math.floor(qrSecondsLeft / 60)).padStart(2, '0');
+      const s = String(qrSecondsLeft % 60).padStart(2, '0');
+      timerDisplay.innerText = `${m}:${s}`;
+    }
+  }, 1000);
 }
 
 function renderCatalog(products) {
@@ -269,21 +349,37 @@ function removeFromBill(id) {
   renderBill();
 }
 
-function applyDiscount(amt) {
-  billDiscount = amt;
+// Custom Discount Logic (% or ₹)
+function onDiscountTypeChange() {
+  discountType = document.getElementById('discountType').value;
   renderBill(false);
+}
+
+function onCustomDiscountChange(val) {
+  const parsed = parseFloat(val);
+  discountValue = (!isNaN(parsed) && parsed >= 0) ? parsed : 0;
+  renderBill(false);
+}
+
+function calculateActualDiscount(subtotal) {
+  if (discountValue <= 0) return 0;
+  if (discountType === 'per') {
+    return parseFloat(((subtotal * discountValue) / 100).toFixed(2));
+  } else {
+    return Math.min(subtotal, discountValue);
+  }
 }
 
 function renderBill(rebuildInputs = true) {
   const tbody = document.getElementById('billBody');
-  let grandTotal = 0;
+  let subtotal = 0;
   let totalItems = 0;
 
   if (rebuildInputs) tbody.innerHTML = '';
 
   currentBill.forEach(item => {
     const itemTotal = parseFloat((item.qty * item.price).toFixed(2));
-    grandTotal += itemTotal;
+    subtotal += itemTotal;
     totalItems += 1;
 
     if (rebuildInputs) {
@@ -312,20 +408,194 @@ function renderBill(rebuildInputs = true) {
     }
   });
 
-  const finalPayable = Math.max(0, grandTotal - billDiscount);
+  const actualDisc = calculateActualDiscount(subtotal);
+  const finalPayable = Math.max(0, subtotal - actualDisc);
   document.getElementById('grandTotal').innerText = finalPayable.toFixed(2);
   document.getElementById('billItemCount').innerText = totalItems;
 }
 
 function clearBill() {
   currentBill = [];
-  billDiscount = 0;
+  discountValue = 0;
+  document.getElementById('customDiscountInput').value = '';
+  currentSessionRef = '';
+  if (qrTimerInterval) clearInterval(qrTimerInterval);
   renderBill();
 }
 
-// ==============================================
-// 100% SINGLE-PAGE DIRECT PRINT ENGINE
-// ==============================================
+// ==========================================================
+// ALL-IN-ONE BULK STOCK PURCHASE (EXCEL SHEET STYLE)
+// ==========================================================
+function renderBulkPurchaseSheet(products = inventory) {
+  const tbody = document.getElementById('bulkPurchaseSheetBody');
+  tbody.innerHTML = '';
+
+  products.forEach((p, idx) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${idx + 1}</td>
+      <td style="text-align:left; font-weight:700;">
+        ${getProductEmoji(p.name)} ${p.name}
+      </td>
+      <td style="color:var(--text-muted); font-weight:700;">
+        ${p.stock} ${p.unit}
+      </td>
+      <td>
+        <input type="number" step="any" class="bulk-qty-input" id="bulk_qty_${p.id}" placeholder="0" oninput="calculateBulkSummary()">
+        <span style="font-size:11px; font-weight:700; color:var(--text-muted);">${p.unit}</span>
+      </td>
+      <td>
+        <input type="number" step="any" class="bulk-rate-input" id="bulk_rate_${p.id}" value="${p.costPrice || 0}" oninput="calculateBulkSummary()">
+      </td>
+      <td style="font-weight:800; color:var(--accent-orange);" id="bulk_cost_${p.id}">
+        ₹0.00
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  calculateBulkSummary();
+}
+
+function filterBulkPurchaseSheet() {
+  const q = document.getElementById('searchBulkPurchase').value.toLowerCase();
+  renderBulkPurchaseSheet(inventory.filter(p => p.name.toLowerCase().includes(q)));
+}
+
+function calculateBulkSummary() {
+  let grandBulkCost = 0;
+
+  inventory.forEach(p => {
+    const qtyInput = document.getElementById(`bulk_qty_${p.id}`);
+    const rateInput = document.getElementById(`bulk_rate_${p.id}`);
+    const costCell = document.getElementById(`bulk_cost_${p.id}`);
+
+    if (qtyInput && rateInput) {
+      const q = parseFloat(qtyInput.value) || 0;
+      const r = parseFloat(rateInput.value) || 0;
+      const total = q * r;
+      grandBulkCost += total;
+      if (costCell) costCell.innerText = '₹' + total.toFixed(2);
+    }
+  });
+
+  document.getElementById('bulkTotalSummaryCost').innerText = grandBulkCost.toFixed(2);
+}
+
+function resetBulkSheetInputs() {
+  inventory.forEach(p => {
+    const qtyInput = document.getElementById(`bulk_qty_${p.id}`);
+    if (qtyInput) qtyInput.value = '';
+  });
+  document.getElementById('bulkSupplierName').value = '';
+  calculateBulkSummary();
+}
+
+function saveAllBulkSheetStock() {
+  const supplier = document.getElementById('bulkSupplierName').value.trim() || 'थोक मंडी';
+  const now = new Date();
+  const d = now.toLocaleDateString('hi-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const t = now.toLocaleTimeString('hi-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+  let updatedCount = 0;
+
+  inventory.forEach(p => {
+    const qtyInput = document.getElementById(`bulk_qty_${p.id}`);
+    const rateInput = document.getElementById(`bulk_rate_${p.id}`);
+
+    if (qtyInput && rateInput) {
+      const addedQty = parseFloat(qtyInput.value);
+      const newRate = parseFloat(rateInput.value);
+
+      if (!isNaN(addedQty) && addedQty > 0) {
+        p.stock = parseFloat((p.stock + addedQty).toFixed(3));
+        if (!isNaN(newRate) && newRate >= 0) p.costPrice = newRate;
+
+        // Record into history
+        purchaseHistory.unshift({
+          id: Date.now() + Math.random(),
+          dateKey: getTodayKey(),
+          dateStr: `${d} ${t}`,
+          productName: p.name,
+          unit: p.unit,
+          supplier: supplier,
+          qty: addedQty,
+          rate: (!isNaN(newRate) ? newRate : p.costPrice),
+          totalCost: parseFloat((addedQty * (!isNaN(newRate) ? newRate : p.costPrice)).toFixed(2))
+        });
+
+        updatedCount++;
+      }
+    }
+  });
+
+  if (updatedCount === 0) {
+    alert('कृपया कम से कम एक सामान में नई खरीदी मात्रा (Qty) भरें!');
+    return;
+  }
+
+  alert(`सफलतापूर्वक ${updatedCount} सामानों का नया स्टॉक इन्वेंट्री में जुड़ गया!`);
+  resetBulkSheetInputs();
+  saveState();
+}
+
+// Editable Purchase History
+function editPurchaseRecord(purchaseId) {
+  const p = purchaseHistory.find(item => item.id === purchaseId);
+  if (!p) return;
+
+  const newQty = prompt(`"${p.productName}" की नई खरीदी गई मात्रा दर्ज करें:`, p.qty);
+  if (newQty === null) return;
+  const newRate = prompt(`"${p.productName}" का नया खरीद रेट प्रति इकाई (₹):`, p.rate);
+  if (newRate === null) return;
+
+  const parsedQty = parseFloat(newQty);
+  const parsedRate = parseFloat(newRate);
+
+  if (isNaN(parsedQty) || parsedQty <= 0 || isNaN(parsedRate) || parsedRate < 0) {
+    alert('अमान्य मान दर्ज किया गया!');
+    return;
+  }
+
+  // Adjust inventory
+  const prod = inventory.find(i => i.name === p.productName);
+  if (prod) {
+    const qtyDiff = parsedQty - p.qty;
+    prod.stock = parseFloat(Math.max(0, prod.stock + qtyDiff).toFixed(3));
+    prod.costPrice = parsedRate;
+  }
+
+  p.qty = parsedQty;
+  p.rate = parsedRate;
+  p.totalCost = parseFloat((parsedQty * parsedRate).toFixed(2));
+
+  saveState();
+  alert('खरीददारी हिसाब सफलतापूर्वक सुधार लिया गया!');
+}
+
+function renderPurchaseHistory() {
+  const tbody = document.getElementById('purchaseHistoryBody');
+  tbody.innerHTML = '';
+  if (purchaseHistory.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="padding:15px; color:var(--text-muted);">कोई खरीद रिकॉर्ड उपलब्ध नहीं है।</td></tr>`;
+    return;
+  }
+  purchaseHistory.forEach(p => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="color:var(--text-muted); font-weight:600;">${p.dateStr}</td>
+      <td style="text-align:left; font-weight:700;">${p.productName}</td>
+      <td>${p.supplier}</td>
+      <td style="font-weight:800; color:var(--primary);">${p.qty} ${p.unit}</td>
+      <td>₹${p.rate}</td>
+      <td style="font-weight:800; color:var(--accent-orange);">₹${p.totalCost.toFixed(2)}</td>
+      <td><button class="action-btn edit" onclick="editPurchaseRecord(${p.id})">✎ सुधार करें</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// Single-Page Direct Print Engine
 function generatePrintHTML(order, mode) {
   let rowsHtml = '';
   order.items.forEach((item, idx) => {
@@ -340,9 +610,6 @@ function generatePrintHTML(order, mode) {
       </tr>
     `;
   });
-
-  const upiUrl = getStaticUPIString();
-  const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(upiUrl)}`;
 
   if (mode === 'thermal') {
     return `
@@ -365,11 +632,12 @@ function generatePrintHTML(order, mode) {
           </thead>
           <tbody>${rowsHtml}</tbody>
         </table>
+        ${order.discountAmount > 0 ? `<div style="font-size:11px; text-align:right; color:#333;">छूट (Discount): -₹${order.discountAmount.toFixed(2)}</div>` : ''}
         <div class="total-line">कुल देय राशि: ₹${order.grandTotal.toFixed(2)}</div>
         
         <div class="qr-print-box">
-          <img src="${qrApiUrl}" alt="UPI QR">
-          <p style="font-size:8.5px; margin-top:1px;">Scan & Pay UPI (${upiID})</p>
+          <div id="printQRCodeContainer" style="display:inline-block;"></div>
+          <p style="font-size:8.5px; margin-top:2px;">Scan & Pay UPI (${upiID})</p>
         </div>
 
         <div class="terms-box">
@@ -408,6 +676,7 @@ function generatePrintHTML(order, mode) {
           </thead>
           <tbody>${rowsHtml}</tbody>
         </table>
+        ${order.discountAmount > 0 ? `<div style="font-size:12px; text-align:right; font-weight:bold; margin-top:4px;">छूट (Discount): -₹${order.discountAmount.toFixed(2)}</div>` : ''}
         <div class="total-box">कुल देय राशि: ₹${order.grandTotal.toFixed(2)}</div>
         
         <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:12px;">
@@ -417,7 +686,7 @@ function generatePrintHTML(order, mode) {
             2. फटा या इस्तेमाल किया हुआ सामान वापस नहीं लिया जाएगा।
           </div>
           <div style="text-align:center;">
-            <img src="${qrApiUrl}" style="width:95px; height:95px; border-radius:4px;" alt="UPI QR">
+            <div id="printQRCodeContainer" style="display:inline-block;"></div>
             <p style="font-size:10px; margin-top:2px;">Scan & Pay UPI (${upiID})</p>
           </div>
         </div>
@@ -429,6 +698,10 @@ function generatePrintHTML(order, mode) {
 function triggerPrintEngine(orderRecord, mode) {
   const wrapper = document.getElementById('printWrapper');
   wrapper.innerHTML = generatePrintHTML(orderRecord, mode);
+  
+  const upiUrl = getOneTimeUPIString(orderRecord.grandTotal, orderRecord.billNo);
+  drawQRCodeToElement('printQRCodeContainer', upiUrl, mode === 'thermal' ? 80 : 95, mode === 'thermal' ? 80 : 95);
+
   document.body.classList.add('printing-mode');
 
   setTimeout(() => {
@@ -437,7 +710,7 @@ function triggerPrintEngine(orderRecord, mode) {
       document.body.classList.remove('printing-mode');
       wrapper.innerHTML = '';
     }, 500);
-  }, 350);
+  }, 300);
 }
 
 function completeSaleAndPrint(mode, paymentType = 'CASH', customerData = null) {
@@ -454,18 +727,21 @@ function completeSaleAndPrint(mode, paymentType = 'CASH', customerData = null) {
     }
   }
 
-  let totalSaleAmount = 0;
-  let totalProfitAmount = 0;
+  let subtotal = 0;
+  let subtotalCost = 0;
 
   currentBill.forEach(b => {
     const prod = inventory.find(p => p.id === b.id);
     if (prod) prod.stock = parseFloat(Math.max(0, prod.stock - b.qty).toFixed(3));
     
-    totalSaleAmount += (b.qty * b.price);
-    totalProfitAmount += (b.qty * (b.price - b.costPrice));
+    subtotal += (b.qty * b.price);
+    subtotalCost += (b.qty * (b.price - b.costPrice));
   });
 
-  const finalAmount = Math.max(0, totalSaleAmount - billDiscount);
+  const actualDiscAmount = calculateActualDiscount(subtotal);
+  const finalAmount = Math.max(0, subtotal - actualDiscAmount);
+  const finalProfit = Math.max(0, subtotalCost - actualDiscAmount);
+
   const invNo = getDailyInvoiceNumber();
   const billNoStr = 'INV-' + invNo;
   const now = new Date();
@@ -481,8 +757,9 @@ function completeSaleAndPrint(mode, paymentType = 'CASH', customerData = null) {
     paymentType: paymentType,
     customer: customerData,
     items: JSON.parse(JSON.stringify(currentBill)),
+    discountAmount: actualDiscAmount,
     grandTotal: parseFloat(finalAmount.toFixed(2)),
-    profit: parseFloat(totalProfitAmount.toFixed(2))
+    profit: parseFloat(finalProfit.toFixed(2))
   };
   salesHistory.unshift(orderRecord);
 
@@ -717,80 +994,6 @@ function renderInventoryTable(products) {
       <td><button class="action-btn edit" onclick="editRatesPrompt(${p.id})">✎ CP/SP</button></td>
       <td><button class="action-btn stock" onclick="editStockPrompt(${p.id})">⇪ स्टॉक</button></td>
       <td><button class="action-btn del" onclick="deleteProduct(${p.id})">हटाएं</button></td>
-    `;
-    tbody.appendChild(tr);
-  });
-}
-
-function renderPurchaseSelect() {
-  const sel = document.getElementById('buyProductSelect');
-  sel.innerHTML = '<option value="">-- सामान चुनें --</option>';
-  inventory.forEach(p => {
-    const opt = document.createElement('option');
-    opt.value = p.id;
-    opt.innerText = `${p.name} (स्टॉक: ${p.stock} ${p.unit})`;
-    sel.appendChild(opt);
-  });
-}
-
-function onPurchaseProductSelect() {
-  const id = parseInt(document.getElementById('buyProductSelect').value);
-  const prod = inventory.find(p => p.id === id);
-  if (prod) document.getElementById('buyRate').value = prod.costPrice || '';
-}
-
-function recordStockPurchase() {
-  const prodId = parseInt(document.getElementById('buyProductSelect').value);
-  const supplier = document.getElementById('buySupplier').value.trim() || 'लोकल मंडी';
-  const qty = parseFloat(document.getElementById('buyQty').value);
-  const rate = parseFloat(document.getElementById('buyRate').value);
-
-  if (!prodId || isNaN(qty) || qty <= 0 || isNaN(rate) || rate < 0) {
-    alert('कृपया सही विवरण भरें!');
-    return;
-  }
-
-  const prod = inventory.find(p => p.id === prodId);
-  if (prod) {
-    prod.stock = parseFloat((prod.stock + qty).toFixed(3));
-    prod.costPrice = rate;
-
-    const now = new Date();
-    const d = now.toLocaleDateString('hi-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    const t = now.toLocaleTimeString('hi-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
-
-    purchaseHistory.unshift({
-      id: Date.now(),
-      dateKey: getTodayKey(),
-      dateStr: `${d} ${t}`,
-      productName: prod.name,
-      unit: prod.unit,
-      supplier: supplier,
-      qty: qty,
-      rate: rate,
-      totalCost: parseFloat((qty * rate).toFixed(2))
-    });
-    saveState();
-
-    document.getElementById('buyQty').value = '';
-    document.getElementById('buyRate').value = '';
-    document.getElementById('buySupplier').value = '';
-    alert(`सफलतापूर्वक ${qty} ${prod.unit} स्टॉक में जुड़ गया!`);
-  }
-}
-
-function renderPurchaseHistory() {
-  const tbody = document.getElementById('purchaseHistoryBody');
-  tbody.innerHTML = '';
-  purchaseHistory.forEach(p => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td style="color:var(--text-muted); font-weight:600;">${p.dateStr}</td>
-      <td style="text-align:left; font-weight:700;">${p.productName}</td>
-      <td>${p.supplier}</td>
-      <td style="font-weight:800; color:var(--primary);">${p.qty} ${p.unit}</td>
-      <td>₹${p.rate}</td>
-      <td style="font-weight:800; color:var(--accent-orange);">₹${p.totalCost.toFixed(2)}</td>
     `;
     tbody.appendChild(tr);
   });

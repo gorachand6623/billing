@@ -63,7 +63,6 @@ body { background: var(--bg-gradient); color: var(--dark-surface); padding: 14px
 }
 .pin-input:focus { border-color: var(--primary); }
 
-/* Main Dashboard Layout */
 #mainApp { display: none; }
 
 .header-bar {
@@ -258,7 +257,34 @@ td { padding: 9px 8px; border-bottom: 1px solid var(--card-border); text-align: 
 
 .qty-input { width: 50px; padding: 5px; border: 1.5px solid var(--card-border); border-radius: 6px; text-align: center; font-weight: 800; outline: none; }
 .qty-input:focus { border-color: var(--primary); }
-.shortcut-btn { background: #f1f5f9; border: 1px solid var(--card-border); padding: 4px 6px; border-radius: 5px; font-size: 10.5px; cursor: pointer; font-weight: 700; margin: 1px; }
+.shortcut-btn { background: #f8fafc; border: 1px solid var(--card-border); padding: 4px 6px; border-radius: 5px; font-size: 10.5px; cursor: pointer; font-weight: 700; margin: 1px; }
+
+/* Bulk Entry Grid Inputs */
+.bulk-qty-input {
+  width: 90px;
+  padding: 6px 8px;
+  border: 1.5px solid #a7f3d0;
+  background: #f0fdf4;
+  border-radius: 6px;
+  font-weight: 800;
+  font-size: 13px;
+  text-align: center;
+  outline: none;
+}
+.bulk-qty-input:focus { border-color: var(--primary); background: #ffffff; }
+
+.bulk-rate-input {
+  width: 90px;
+  padding: 6px 8px;
+  border: 1.5px solid #bfdbfe;
+  background: #eff6ff;
+  border-radius: 6px;
+  font-weight: 800;
+  font-size: 13px;
+  text-align: center;
+  outline: none;
+}
+.bulk-rate-input:focus { border-color: var(--accent-blue); background: #ffffff; }
 
 .action-btn { border: none; padding: 6px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; }
 .action-btn.edit { background: var(--accent-blue-light); color: var(--accent-blue); border: 1px solid var(--accent-blue-border); }
@@ -276,7 +302,36 @@ td { padding: 9px 8px; border-bottom: 1px solid var(--card-border); text-align: 
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
 }
+
+.discount-box-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+.discount-select {
+  padding: 4px 6px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  outline: none;
+  background: #fff;
+}
+.discount-input {
+  width: 65px;
+  padding: 4px 6px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  outline: none;
+  background: #ffffff;
+}
+.discount-input:focus { border-color: var(--primary); }
 
 .qr-pay-panel {
   display: flex;
@@ -285,10 +340,45 @@ td { padding: 9px 8px; border-bottom: 1px solid var(--card-border); text-align: 
   background: #ffffff;
   border: 1.5px solid var(--card-border);
   border-radius: var(--radius-md);
-  padding: 10px 14px;
+  padding: 12px 16px;
   margin-top: 12px;
+  position: relative;
 }
-.qr-img { width: 85px; height: 85px; border-radius: 6px; border: 1px solid #cbd5e1; object-fit: contain; }
+.qr-canvas-holder {
+  width: 95px;
+  height: 95px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 4px;
+}
+.qr-canvas-holder img, .qr-canvas-holder canvas {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain;
+}
+
+.timer-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 20px;
+  margin-top: 4px;
+}
+.timer-badge.expired {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
 
 .btn {
   display: inline-flex;
@@ -335,9 +425,7 @@ td { padding: 9px 8px; border-bottom: 1px solid var(--card-border); text-align: 
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
 }
 
-/* ==============================================
-   SINGLE-PAGE PRINT STYLES (NO EXTRA BLANK PAGE)
-   ============================================== */
+/* Print View */
 #printWrapper {
   display: none;
   background: #ffffff;
@@ -363,8 +451,6 @@ body.printing-mode #printWrapper {
   background: #fff;
   page-break-inside: avoid;
   break-inside: avoid;
-  page-break-after: avoid;
-  break-after: avoid;
 }
 .thermal-box h2 { font-size: 15px; text-align: center; margin-bottom: 2px; }
 .thermal-box p { font-size: 10.5px; text-align: center; line-height: 1.25; margin-bottom: 2px; }
@@ -373,8 +459,7 @@ body.printing-mode #printWrapper {
 .thermal-box th { border-bottom: 1px dashed #000; padding: 3px 0; text-align: center; }
 .thermal-box td { border-bottom: 1px dotted #ccc; padding: 3px 0; text-align: center; }
 .thermal-box .total-line { font-size: 13.5px; font-weight: bold; text-align: right; border-top: 1px dashed #000; padding-top: 4px; margin-top: 2px; }
-.thermal-box .qr-print-box { text-align: center; margin: 6px 0 4px 0; }
-.thermal-box .qr-print-box img { width: 80px; height: 80px; border-radius: 4px; margin: auto; }
+.thermal-box .qr-print-box { text-align: center; margin: 6px 0 4px 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 .thermal-box .terms-box { font-size: 9px; border-top: 1px dashed #000; margin-top: 4px; padding-top: 4px; line-height: 1.2; text-align: left; }
 
 .a4-box {
@@ -387,8 +472,6 @@ body.printing-mode #printWrapper {
   background: #fff;
   page-break-inside: avoid;
   break-inside: avoid;
-  page-break-after: avoid;
-  break-after: avoid;
 }
 .a4-box .a4-header { display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 10px; }
 .a4-box table { width: 100%; border-collapse: collapse; font-size: 12px; margin: 8px 0; }
@@ -397,25 +480,7 @@ body.printing-mode #printWrapper {
 .a4-box .total-box { font-size: 14.5px; font-weight: bold; text-align: right; margin-top: 6px; }
 
 @media print {
-  @page {
-    size: auto;
-    margin: 0mm !important;
-  }
-  html, body {
-    background: #ffffff !important;
-    width: 100% !important;
-    height: auto !important;
-    min-height: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    overflow: visible !important;
-  }
-  #printWrapper {
-    display: block !important;
-    position: static !important;
-    width: 100% !important;
-    height: auto !important;
-    padding: 0 !important;
-    margin: 0 !important;
-  }
+  @page { size: auto; margin: 0mm !important; }
+  html, body { background: #ffffff !important; width: 100% !important; height: auto !important; margin: 0 !important; padding: 0 !important; }
+  #printWrapper { display: block !important; position: static !important; width: 100% !important; height: auto !important; }
 }
