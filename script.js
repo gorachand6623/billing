@@ -220,6 +220,9 @@ function switchTab(tabId, btnId) {
     renderBulkPurchaseSheet();
     renderPurchaseHistory();
   }
+  if (tabId === 'inventory-tab') {
+    renderInventoryTable();
+  }
 }
 
 function updateClock() {
@@ -248,7 +251,7 @@ function setUPIPrompt() {
 
 function renderUI() {
   renderCatalog(inventory);
-  renderInventoryTable(inventory);
+  renderInventoryTable();
   renderBulkPurchaseSheet();
   renderPurchaseHistory();
   renderSalesReport();
@@ -542,7 +545,97 @@ function clearBill() {
 }
 
 // ==========================================================
-// 6. BULK STOCK ENTRY SHEET
+// 6. EXCEL SPREADSHEET INVENTORY & STOCK ENGINE
+// ==========================================================
+function renderInventoryTable(products = inventory) {
+  const tbody = document.getElementById('inventoryTableBody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  products.forEach((p, idx) => {
+    const profit = ((p.price || 0) - (p.costPrice || 0)).toFixed(2);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${idx + 1}</td>
+      <td style="text-align:left; font-weight:700;">
+        ${getProductEmoji(p.name)} ${p.name}
+      </td>
+      <td>${p.unit}</td>
+      <td>
+        <input type="number" step="any" class="excel-cell-input excel-cp-input" id="inv_cp_${p.id}" value="${p.costPrice || 0}" oninput="updateLiveProfit(${p.id})">
+      </td>
+      <td>
+        <input type="number" step="any" class="excel-cell-input excel-sp-input" id="inv_sp_${p.id}" value="${p.price || 0}" oninput="updateLiveProfit(${p.id})">
+      </td>
+      <td style="font-weight:800; color:var(--accent-blue);" id="inv_profit_${p.id}">
+        +₹${profit}
+      </td>
+      <td>
+        <input type="number" step="any" class="excel-cell-input excel-stock-input" id="inv_stock_${p.id}" value="${p.stock || 0}">
+      </td>
+      <td>
+        <button class="action-btn del" onclick="deleteProduct(${p.id})">×</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function updateLiveProfit(id) {
+  const cpEl = document.getElementById(`inv_cp_${id}`);
+  const spEl = document.getElementById(`inv_sp_${id}`);
+  const profitEl = document.getElementById(`inv_profit_${id}`);
+
+  if (cpEl && spEl && profitEl) {
+    const cp = parseFloat(cpEl.value) || 0;
+    const sp = parseFloat(spEl.value) || 0;
+    const prof = (sp - cp).toFixed(2);
+    profitEl.innerText = (prof >= 0 ? '+₹' : '-₹') + Math.abs(prof);
+    profitEl.style.color = prof >= 0 ? 'var(--accent-blue)' : 'var(--danger)';
+  }
+}
+
+function saveAllExcelInventory() {
+  let changeCount = 0;
+
+  inventory.forEach(p => {
+    const cpEl = document.getElementById(`inv_cp_${p.id}`);
+    const spEl = document.getElementById(`inv_sp_${p.id}`);
+    const stockEl = document.getElementById(`inv_stock_${p.id}`);
+
+    if (cpEl && spEl && stockEl) {
+      const newCP = parseFloat(cpEl.value);
+      const newSP = parseFloat(spEl.value);
+      const newStock = parseFloat(stockEl.value);
+
+      if (!isNaN(newCP) && !isNaN(newSP) && !isNaN(newStock)) {
+        p.costPrice = newCP;
+        p.price = newSP;
+        p.stock = newStock;
+        changeCount++;
+
+        // Live Bill sync
+        const bItem = currentBill.find(b => b.id === p.id);
+        if (bItem) {
+          bItem.price = p.price;
+          bItem.costPrice = p.costPrice;
+        }
+      }
+    }
+  });
+
+  saveState();
+  renderBill();
+  alert(`सफलतापूर्वक ${changeCount} सामानों के रेट व स्टॉक सुरक्षित कर लिए गए!`);
+}
+
+function filterInventoryTable() {
+  const q = document.getElementById('searchInventory').value.toLowerCase();
+  renderInventoryTable(inventory.filter(p => p.name.toLowerCase().includes(q)));
+}
+
+// ==========================================================
+// 7. BULK STOCK ENTRY SHEET
 // ==========================================================
 function renderBulkPurchaseSheet(products = inventory) {
   const tbody = document.getElementById('bulkPurchaseSheetBody');
@@ -715,7 +808,7 @@ function renderPurchaseHistory() {
 }
 
 // ==============================================
-// 7. 100% RELIABLE MOBILE & PC DIRECT PRINT ENGINE
+// 8. PRINT & CHECKOUT
 // ==============================================
 function generatePrintHTML(order, mode) {
   let rowsHtml = '';
@@ -1165,63 +1258,6 @@ function setTodaySalesFilter() {
   renderSalesReport();
 }
 
-// Inventory & Products
-function renderInventoryTable(products) {
-  const tbody = document.getElementById('inventoryTableBody');
-  if (!tbody) return;
-  tbody.innerHTML = '';
-  products.forEach((p, idx) => {
-    const isLow = p.stock <= 5;
-    const profit = ((p.price || 0) - (p.costPrice || 0)).toFixed(2);
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${idx + 1}</td>
-      <td style="text-align:left; font-weight:700;">${p.name}</td>
-      <td>${p.unit}</td>
-      <td style="color:#64748b; font-weight:700;">₹${p.costPrice || 0}</td>
-      <td style="font-weight:700; color:var(--primary);">₹${p.price}</td>
-      <td style="font-weight:700; color:var(--accent-blue);">+₹${profit}</td>
-      <td class="${isLow ? 'low-stock' : ''}" style="font-weight:700;">${p.stock} ${p.unit}</td>
-      <td><button class="action-btn edit" onclick="editRatesPrompt(${p.id})">✎ CP/SP</button></td>
-      <td><button class="action-btn stock" onclick="editStockPrompt(${p.id})">⇪ स्टॉक</button></td>
-      <td><button class="action-btn del" onclick="deleteProduct(${p.id})">हटाएं</button></td>
-    `;
-    tbody.appendChild(tr);
-  });
-}
-
-function editRatesPrompt(id) {
-  const p = inventory.find(i => i.id === id);
-  if (p) {
-    const newCP = prompt(`"${p.name}" का नया खरीद रेट (CP):`, p.costPrice || 0);
-    if (newCP === null) return;
-    const newSP = prompt(`"${p.name}" का नया बिक्री रेट (SP):`, p.price);
-    if (newSP === null) return;
-
-    if (!isNaN(newCP) && newCP.trim() !== '') p.costPrice = parseFloat(newCP);
-    if (!isNaN(newSP) && newSP.trim() !== '') p.price = parseFloat(newSP);
-
-    const billItem = currentBill.find(b => b.id === id);
-    if (billItem) {
-      billItem.price = p.price;
-      billItem.costPrice = p.costPrice;
-    }
-    saveState();
-    renderBill();
-  }
-}
-
-function editStockPrompt(id) {
-  const p = inventory.find(i => i.id === id);
-  if (p) {
-    const newStock = prompt(`"${p.name}" का नया कुल स्टॉक:`, p.stock);
-    if (newStock !== null && !isNaN(newStock) && newStock.trim() !== '') {
-      p.stock = parseFloat(newStock);
-      saveState();
-    }
-  }
-}
-
 function addProduct() {
   const name = document.getElementById('pName').value.trim();
   const unit = document.getElementById('pUnit').value;
@@ -1251,11 +1287,6 @@ function deleteProduct(id) {
     inventory = inventory.filter(p => p.id !== id);
     saveState();
   }
-}
-
-function filterInventoryTable() {
-  const q = document.getElementById('searchInventory').value.toLowerCase();
-  renderInventoryTable(inventory.filter(p => p.name.toLowerCase().includes(q)));
 }
 
 function exportBackup() {
