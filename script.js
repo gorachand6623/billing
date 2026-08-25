@@ -715,7 +715,7 @@ function renderPurchaseHistory() {
 }
 
 // ==============================================
-// 7. PRINT & CHECKOUT
+// 7. 100% RELIABLE ISOLATED PRINT ENGINE
 // ==============================================
 function generatePrintHTML(order, mode) {
   let rowsHtml = '';
@@ -723,18 +723,46 @@ function generatePrintHTML(order, mode) {
     const tot = (item.qty * item.price).toFixed(2);
     rowsHtml += `
       <tr>
-        ${mode === 'a4' ? `<td style="text-align:center;">${idx+1}</td>` : ''}
-        <td style="text-align:left;">${item.name}</td>
-        <td style="text-align:center;">${item.qty} ${item.unit}</td>
-        <td style="text-align:center;">₹${item.price}</td>
-        <td style="text-align:right;">₹${tot}</td>
+        ${mode === 'a4' ? `<td style="text-align:center; padding:6px; border:1px solid #000;">${idx+1}</td>` : ''}
+        <td style="text-align:left; padding:4px 0; border-bottom:1px dotted #ccc;">${item.name}</td>
+        <td style="text-align:center; padding:4px 0; border-bottom:1px dotted #ccc;">${item.qty} ${item.unit}</td>
+        <td style="text-align:center; padding:4px 0; border-bottom:1px dotted #ccc;">₹${item.price}</td>
+        <td style="text-align:right; padding:4px 0; border-bottom:1px dotted #ccc;">₹${tot}</td>
       </tr>
     `;
   });
 
+  const upiUrl = getOneTimeUPIString(order.grandTotal, order.billNo);
+  const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(upiUrl)}`;
+
   if (mode === 'thermal') {
     return `
-      <div class="thermal-box">
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          @page { size: auto; margin: 0mm; }
+          body { 
+            font-family: 'Courier New', monospace, sans-serif; 
+            margin: 0; 
+            padding: 6px 8px; 
+            color: #000; 
+            width: 74mm; 
+            background: #fff;
+          }
+          h2 { font-size: 15px; text-align: center; margin: 0 0 2px 0; }
+          p { font-size: 10.5px; text-align: center; line-height: 1.25; margin: 2px 0; }
+          .meta-line { display: flex; justify-content: space-between; font-size: 10.5px; border-bottom: 1px dashed #000; padding-bottom: 3px; margin: 4px 0; }
+          table { width: 100%; border-collapse: collapse; font-size: 11px; margin: 4px 0; }
+          th { border-bottom: 1px dashed #000; padding: 3px 0; text-align: center; }
+          .total-line { font-size: 13.5px; font-weight: bold; text-align: right; border-top: 1px dashed #000; padding-top: 4px; margin-top: 2px; }
+          .qr-box { text-align: center; margin: 6px 0 4px 0; }
+          .qr-box img { width: 85px; height: 85px; margin: auto; }
+          .terms { font-size: 9px; border-top: 1px dashed #000; margin-top: 4px; padding-top: 4px; line-height: 1.2; text-align: left; }
+        </style>
+      </head>
+      <body>
         <h2>बेस्ट टू बेस्ट किराना स्टोर</h2>
         <p>बड़बाद, पूर्वी टुंडी, धनबाद (828109)<br>मो: 6204339748 | प्रो: गोराचाँद मंडल</p>
         <div class="meta-line">
@@ -753,25 +781,46 @@ function generatePrintHTML(order, mode) {
           </thead>
           <tbody>${rowsHtml}</tbody>
         </table>
-        ${order.discountAmount > 0 ? `<div style="font-size:11px; text-align:right; color:#333;">छूट (Discount): -₹${order.discountAmount.toFixed(2)}</div>` : ''}
+        ${order.discountAmount > 0 ? `<div style="font-size:11px; text-align:right; color:#333;">छूट: -₹${order.discountAmount.toFixed(2)}</div>` : ''}
         <div class="total-line">कुल देय राशि: ₹${order.grandTotal.toFixed(2)}</div>
         
-        <div class="qr-print-box">
-          <div id="printQRCodeContainer" style="display:inline-block;"></div>
+        <div class="qr-box">
+          <img src="${qrApiUrl}" alt="UPI QR">
           <p style="font-size:8.5px; margin-top:2px;">Scan & Pay UPI (${upiID})</p>
         </div>
 
-        <div class="terms-box">
+        <div class="terms">
           <b>नियम व शर्तें:</b><br>
           1. बिका माल 48 घंटे के भीतर रसीद के साथ ही वापस होगा।<br>
           2. खुला/फटा हुआ पैकेट वापस नहीं होगा।
         </div>
         <p style="margin-top:6px; font-size:10px; text-align:center;">*** धन्यवाद! फिर पधारें ***</p>
-      </div>
+      </body>
+      </html>
     `;
   } else {
     return `
-      <div class="a4-box">
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          @page { size: auto; margin: 0mm; }
+          body { 
+            font-family: system-ui, -apple-system, sans-serif; 
+            margin: 0; 
+            padding: 18px 22px; 
+            color: #000; 
+            width: 210mm; 
+            background: #fff;
+          }
+          .a4-header { display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 10px; }
+          table { width: 100%; border-collapse: collapse; font-size: 12px; margin: 8px 0; }
+          th { border: 1px solid #000; background: #f1f5f9; padding: 6px; }
+          .total-box { font-size: 14.5px; font-weight: bold; text-align: right; margin-top: 6px; }
+        </style>
+      </head>
+      <body>
         <div class="a4-header">
           <div>
             <h2 style="font-size:20px; font-weight:800; margin:0;">बेस्ट टू बेस्ट किराना स्टोर</h2>
@@ -789,50 +838,57 @@ function generatePrintHTML(order, mode) {
           <thead>
             <tr>
               <th>क्र.</th>
-              <th style="text-align:left;">सामान का विवरण</th>
+              <th style="text-align:left; padding:6px;">सामान का विवरण</th>
               <th>मात्रा</th>
               <th>दर (₹)</th>
-              <th style="text-align:right;">कुल राशि (₹)</th>
+              <th style="text-align:right; padding:6px;">कुल राशि (₹)</th>
             </tr>
           </thead>
           <tbody>${rowsHtml}</tbody>
         </table>
-        ${order.discountAmount > 0 ? `<div style="font-size:12px; text-align:right; font-weight:bold; margin-top:4px;">छूट (Discount): -₹${order.discountAmount.toFixed(2)}</div>` : ''}
+        ${order.discountAmount > 0 ? `<div style="font-size:12px; text-align:right; font-weight:bold; margin-top:4px;">छूट: -₹${order.discountAmount.toFixed(2)}</div>` : ''}
         <div class="total-box">कुल देय राशि: ₹${order.grandTotal.toFixed(2)}</div>
         
         <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:12px;">
-          <div class="terms-box" style="font-size:11px; line-height:1.3; max-width:65%;">
+          <div style="font-size:11px; line-height:1.3; max-width:65%;">
             <b>नियम एवं शर्तें:</b><br>
             1. बिका हुआ माल 48 घंटे के अंदर बिल के साथ लाने पर ही वापस/बदला जाएगा।<br>
             2. फटा या इस्तेमाल किया हुआ सामान वापस नहीं लिया जाएगा।
           </div>
           <div style="text-align:center;">
-            <div id="printQRCodeContainer" style="display:inline-block;"></div>
+            <img src="${qrApiUrl}" style="width:95px; height:95px; border-radius:4px;" alt="UPI QR">
             <p style="font-size:10px; margin-top:2px;">Scan & Pay UPI (${upiID})</p>
           </div>
         </div>
-      </div>
+      </body>
+      </html>
     `;
   }
 }
 
 function triggerPrintEngine(orderRecord, mode) {
-  const wrapper = document.getElementById('printWrapper');
-  if (!wrapper) return;
-  wrapper.innerHTML = generatePrintHTML(orderRecord, mode);
-  
-  const upiUrl = getOneTimeUPIString(orderRecord.grandTotal, orderRecord.billNo);
-  drawQRCodeToElement('printQRCodeContainer', upiUrl, mode === 'thermal' ? 80 : 95, mode === 'thermal' ? 80 : 95);
+  let printFrame = document.getElementById('printReceiptFrame');
+  if (!printFrame) {
+    printFrame = document.createElement('iframe');
+    printFrame.id = 'printReceiptFrame';
+    printFrame.style.position = 'fixed';
+    printFrame.style.right = '0';
+    printFrame.style.bottom = '0';
+    printFrame.style.width = '0';
+    printFrame.style.height = '0';
+    printFrame.style.border = '0';
+    document.body.appendChild(printFrame);
+  }
 
-  document.body.classList.add('printing-mode');
+  const frameDoc = printFrame.contentWindow || printFrame.contentDocument.document || printFrame.contentDocument;
+  frameDoc.document.open();
+  frameDoc.document.write(generatePrintHTML(orderRecord, mode));
+  frameDoc.document.close();
 
   setTimeout(() => {
-    window.print();
-    setTimeout(() => {
-      document.body.classList.remove('printing-mode');
-      wrapper.innerHTML = '';
-    }, 500);
-  }, 300);
+    printFrame.contentWindow.focus();
+    printFrame.contentWindow.print();
+  }, 350);
 }
 
 function completeSaleAndPrint(mode, paymentType = 'CASH', customerData = null) {
@@ -1248,7 +1304,7 @@ function importBackup(event) {
   reader.readAsText(file);
 }
 
-// Fallback auto-init for direct local run
+// Fallback auto-init
 window.addEventListener('DOMContentLoaded', () => {
   const secScreen = document.getElementById('securityScreen');
   if (secScreen && secScreen.style.display !== 'none') {
