@@ -1,80 +1,95 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="hi">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>बेस्ट टू बेस्ट किराना स्टोर - प्रीमियम POS व ERP</title>
+  <title>बेस्ट टू बेस्ट किराना स्टोर - सुरक्षित POS व इन्वेंट्री</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-page: #f1f5f9;
-      --bg-gradient: radial-gradient(at 0% 0%, #f8fafc 0, transparent 50%), radial-gradient(at 100% 100%, #e2e8f0 0, transparent 50%), #edf2f7;
-      
-      --card-surface: rgba(255, 255, 255, 0.92);
-      --card-border: #e2e8f0;
-      
       --primary: #059669;
       --primary-hover: #047857;
       --primary-light: #ecfdf5;
       --primary-border: #a7f3d0;
-      
       --accent-blue: #0284c7;
       --accent-blue-light: #f0f9ff;
-      --accent-blue-border: #bae6fd;
-      
+      --accent-blue-border: #bfdbfe;
       --accent-orange: #ea580c;
-      --accent-orange-light: #fff7ed;
-      
+      --dark-surface: #0f172a;
+      --text-muted: #64748b;
+      --bg-gradient: linear-gradient(145deg, #f8fafc 0%, #edf2f9 50%, #e8f0fe 100%);
+      --card-bg: rgba(255, 255, 255, 0.95);
+      --card-border: #e2e8f0;
       --danger: #e11d48;
       --danger-light: #fff1f2;
       --danger-border: #fecdd3;
-      
-      --dark-navy: #0f172a;
-      --text-muted: #64748b;
-      --text-soft: #334155;
-      
-      --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.04);
-      --shadow-card: 0 10px 25px -5px rgba(15, 23, 42, 0.04), 0 4px 6px -2px rgba(15, 23, 42, 0.02);
+      --shadow-sm: 0 2px 4px rgba(15, 23, 42, 0.04);
+      --shadow-card: 0 10px 25px -5px rgba(15, 23, 42, 0.05);
       --shadow-hover: 0 14px 20px -4px rgba(5, 150, 105, 0.12);
-      
       --radius-xl: 16px;
       --radius-lg: 12px;
       --radius-md: 8px;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; -webkit-tap-highlight-color: transparent; }
-    body { background: var(--bg-gradient); color: var(--dark-navy); padding: 12px; min-height: 100vh; }
-    @media(min-width: 768px) { body { padding: 20px; } }
+    body { background: var(--bg-gradient); color: var(--dark-surface); padding: 14px; min-height: 100vh; }
+    @media(min-width: 768px) { body { padding: 22px; } }
 
-    /* Top Brand Navbar */
+    /* Security PIN Screen */
+    #securityScreen {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: linear-gradient(135deg, #064e3b 0%, #0f172a 100%);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .pin-box {
+      background: #ffffff;
+      padding: 28px 24px;
+      border-radius: var(--radius-xl);
+      text-align: center;
+      max-width: 360px;
+      width: 100%;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+    }
+    .pin-box h2 { font-size: 19px; font-weight: 800; color: #0f172a; margin-bottom: 4px; }
+    .pin-box p { font-size: 12px; color: var(--text-muted); margin-bottom: 18px; }
+    .pin-input {
+      width: 100%;
+      padding: 14px;
+      font-size: 22px;
+      text-align: center;
+      letter-spacing: 8px;
+      border: 2px solid #cbd5e1;
+      border-radius: var(--radius-md);
+      margin-bottom: 14px;
+      outline: none;
+      font-weight: 800;
+    }
+    .pin-input:focus { border-color: var(--primary); }
+
+    /* Main Dashboard Layout */
+    #mainApp { display: none; }
+
     .header-bar {
       background: linear-gradient(135deg, #064e3b 0%, #0f172a 60%, #1e1b4b 100%);
       color: white;
-      padding: 16px 20px;
+      padding: 18px 22px;
       border-radius: var(--radius-xl);
-      margin-bottom: 16px;
+      margin-bottom: 18px;
       display: flex;
       flex-direction: column;
       gap: 12px;
-      box-shadow: 0 12px 28px -6px rgba(6, 78, 59, 0.25);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      position: relative;
-      overflow: hidden;
+      box-shadow: 0 12px 30px -5px rgba(6, 78, 59, 0.25);
     }
     @media(min-width: 768px) {
-      .header-bar { flex-direction: row; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+      .header-bar { flex-direction: row; justify-content: space-between; align-items: center; margin-bottom: 22px; }
     }
-    .header-bar::after {
-      content: '';
-      position: absolute;
-      top: -50%; right: -20%;
-      width: 250px; height: 250px;
-      background: radial-gradient(circle, rgba(52, 211, 153, 0.18) 0%, transparent 70%);
-      pointer-events: none;
-    }
-
     .shop-details h1 { 
       font-size: 21px; 
       font-weight: 800; 
@@ -83,11 +98,10 @@
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
-    .shop-details p { font-size: 12.5px; color: #94a3b8; margin-top: 2px; font-weight: 500; }
+    .shop-details p { font-size: 13px; color: #94a3b8; margin-top: 3px; font-weight: 500; }
 
     .shop-badge {
       background: rgba(255, 255, 255, 0.08);
-      backdrop-filter: blur(8px);
       border: 1px solid rgba(255, 255, 255, 0.15);
       padding: 8px 14px;
       border-radius: var(--radius-md);
@@ -98,103 +112,95 @@
     }
     .backup-btn-group { display: flex; gap: 6px; flex-wrap: wrap; }
     .btn-backup {
-      background: rgba(255, 255, 255, 0.14);
+      background: rgba(255, 255, 255, 0.15);
       border: 1px solid rgba(255, 255, 255, 0.25);
       color: #ffffff;
-      padding: 4px 8px;
+      padding: 5px 10px;
       border-radius: 6px;
       font-size: 11px;
       font-weight: 700;
       cursor: pointer;
-      transition: all 0.15s;
     }
-    .btn-backup:hover { background: rgba(255, 255, 255, 0.25); }
 
-    /* Metric Summary Stats */
     .stats-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-bottom: 16px;
+      gap: 12px;
+      margin-bottom: 18px;
     }
-    @media(min-width: 768px) { .stats-row { grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; } }
+    @media(min-width: 768px) { .stats-row { grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 22px; } }
 
     .stat-card {
-      background: var(--card-surface);
+      background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: var(--radius-lg);
-      padding: 12px 14px;
+      padding: 14px 16px;
       box-shadow: var(--shadow-card);
       display: flex;
       justify-content: space-between;
       align-items: center;
       position: relative;
-      overflow: hidden;
     }
-    .stat-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3.5px; background: var(--primary); }
+    .stat-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--primary); }
     .stat-card.blue::before { background: var(--accent-blue); }
     .stat-card.orange::before { background: var(--accent-orange); }
     .stat-card.danger::before { background: var(--danger); }
 
-    .stat-card .label { font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; }
-    .stat-card .val { font-size: 17px; font-weight: 800; color: var(--dark-navy); margin-top: 3px; }
+    .stat-card .label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
+    .stat-card .val { font-size: 18px; font-weight: 800; color: var(--dark-surface); margin-top: 3px; }
 
-    /* Modern Rounded Navigation Tabs */
     .tab-navigation {
       display: flex;
-      gap: 6px;
+      gap: 8px;
       background: #e2e8f0;
-      padding: 4px;
+      padding: 5px;
       border-radius: var(--radius-lg);
-      margin-bottom: 16px;
+      margin-bottom: 18px;
       overflow-x: auto;
       white-space: nowrap;
     }
     .tab-navigation::-webkit-scrollbar { display: none; }
 
     .tab-btn {
-      padding: 9px 14px;
+      padding: 10px 16px;
       border-radius: var(--radius-md);
       border: none;
       background: transparent;
-      color: var(--text-soft);
-      font-size: 12.5px;
+      color: #475569;
+      font-size: 13px;
       font-weight: 700;
       cursor: pointer;
       display: flex;
       align-items: center;
-      gap: 5px;
+      gap: 6px;
       flex-shrink: 0;
-      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     }
     .tab-btn.active {
       background: #ffffff;
       color: var(--primary);
-      box-shadow: 0 4px 10px rgba(15, 23, 42, 0.06);
-      transform: translateY(-1px);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.06);
     }
 
     .tab-content { display: none; }
-    .tab-content.active { display: block; animation: fadeInUp 0.25s ease; }
-    @keyframes fadeInUp { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    .tab-content.active { display: block; }
 
-    .pos-layout { display: grid; grid-template-columns: 1fr; gap: 14px; }
-    @media (min-width: 1024px) { .pos-layout { grid-template-columns: 1.35fr 1fr; gap: 20px; } }
+    .pos-layout { display: grid; grid-template-columns: 1fr; gap: 16px; }
+    @media (min-width: 1024px) { .pos-layout { grid-template-columns: 1.3fr 1fr; gap: 22px; } }
 
     .card {
-      background: var(--card-surface);
+      background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: var(--radius-xl);
-      padding: 16px;
+      padding: 18px;
       box-shadow: var(--shadow-card);
     }
 
     .card-title {
-      font-size: 14.5px;
+      font-size: 15px;
       font-weight: 800;
-      color: var(--dark-navy);
-      padding-bottom: 8px;
-      margin-bottom: 12px;
+      color: var(--dark-surface);
+      padding-bottom: 10px;
+      margin-bottom: 14px;
       border-bottom: 1px solid var(--card-border);
       display: flex;
       justify-content: space-between;
@@ -205,46 +211,42 @@
 
     .search-input {
       width: 100%;
-      padding: 10px 14px;
+      padding: 11px 14px;
       border: 1.5px solid var(--card-border);
       border-radius: var(--radius-md);
-      font-size: 13px;
+      font-size: 13.5px;
       margin-bottom: 12px;
       outline: none;
-      background: #ffffff;
-      transition: all 0.2s;
+      background: #f8fafc;
     }
-    .search-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.12); }
+    .search-input:focus { border-color: var(--primary); background: #ffffff; }
 
-    /* Product Grid Cards with Auto Emojis */
     .product-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(115px, 1fr));
       gap: 10px;
-      max-height: 380px;
+      max-height: 400px;
       overflow-y: auto;
     }
     .product-card {
-      background: #ffffff;
+      background: #f8fafc;
       border: 1.5px solid var(--card-border);
-      border-radius: var(--radius-lg);
-      padding: 12px 8px;
+      border-radius: var(--radius-md);
+      padding: 12px 10px;
       text-align: center;
       cursor: pointer;
-      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: all 0.2s;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
     }
-    .product-card:hover { border-color: var(--primary); background: var(--primary-light); transform: translateY(-3px); box-shadow: var(--shadow-hover); }
-    .product-card:active { transform: scale(0.97); }
+    .product-card:hover { border-color: var(--primary); background: var(--primary-light); transform: translateY(-2px); box-shadow: var(--shadow-hover); }
     .product-card.out-of-stock { opacity: 0.55; background: #fff1f2; border-color: #fecdd3; cursor: not-allowed; }
     
     .product-emoji { font-size: 24px; margin-bottom: 4px; }
-    .product-card h4 { font-size: 12.5px; font-weight: 700; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--dark-navy); }
+    .product-card h4 { font-size: 13px; font-weight: 700; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--dark-surface); }
     .product-card .price { font-size: 14px; color: var(--primary); font-weight: 800; }
-    
-    /* Rounded Stock Status Pill */
+
     .stock-pill {
       display: inline-block;
       font-size: 10px;
@@ -259,19 +261,16 @@
     .stock-pill.low { background: #fffbeb; color: #b45309; }
     .stock-pill.out { background: #fef2f2; color: #b91c1c; }
 
-    /* Tables */
     .table-container { width: 100%; overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
-    th { background: #f8fafc; color: var(--text-muted); font-weight: 700; padding: 9px 8px; border-bottom: 1.5px solid var(--card-border); text-align: center; white-space: nowrap; }
+    th { background: #f8fafc; color: var(--text-muted); font-weight: 700; padding: 10px 8px; border-bottom: 1.5px solid var(--card-border); text-align: center; white-space: nowrap; }
     td { padding: 9px 8px; border-bottom: 1px solid var(--card-border); text-align: center; white-space: nowrap; }
 
-    .qty-input { width: 48px; padding: 5px; border: 1.5px solid var(--card-border); border-radius: 6px; text-align: center; font-weight: 800; outline: none; }
+    .qty-input { width: 50px; padding: 5px; border: 1.5px solid var(--card-border); border-radius: 6px; text-align: center; font-weight: 800; outline: none; }
     .qty-input:focus { border-color: var(--primary); }
-    .shortcut-btn { background: #f8fafc; border: 1px solid var(--card-border); padding: 4px 6px; border-radius: 5px; font-size: 10.5px; cursor: pointer; font-weight: 700; margin: 1px; transition: all 0.15s; }
-    .shortcut-btn:hover { background: #e2e8f0; }
+    .shortcut-btn { background: #f1f5f9; border: 1px solid var(--card-border); padding: 4px 6px; border-radius: 5px; font-size: 10.5px; cursor: pointer; font-weight: 700; margin: 1px; }
 
-    .action-btn { border: none; padding: 5px 9px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; transition: all 0.15s; }
-    .action-btn:hover { transform: translateY(-1px); }
+    .action-btn { border: none; padding: 6px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; }
     .action-btn.edit { background: var(--accent-blue-light); color: var(--accent-blue); border: 1px solid var(--accent-blue-border); }
     .action-btn.stock { background: var(--primary-light); color: var(--primary); border: 1px solid var(--primary-border); }
     .action-btn.del { background: var(--danger-light); color: var(--danger); border: 1px solid var(--danger-border); }
@@ -282,50 +281,48 @@
       background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
       border: 1.5px dashed #cbd5e1;
       border-radius: var(--radius-lg);
-      padding: 12px 14px;
-      margin-top: 12px;
+      padding: 14px 16px;
+      margin-top: 14px;
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
 
-    /* UPI QR Display Panel */
     .qr-pay-panel {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 14px;
       background: #ffffff;
       border: 1.5px solid var(--card-border);
       border-radius: var(--radius-md);
-      padding: 10px 12px;
+      padding: 10px 14px;
       margin-top: 12px;
     }
-    .qr-img { width: 80px; height: 80px; border-radius: 6px; border: 1px solid #cbd5e1; object-fit: contain; }
+    .qr-img { width: 85px; height: 85px; border-radius: 6px; border: 1px solid #cbd5e1; object-fit: contain; }
 
     .btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      padding: 11px 14px;
+      padding: 12px 16px;
       border-radius: var(--radius-md);
-      font-size: 13px;
+      font-size: 13.5px;
       font-weight: 800;
       border: none;
       cursor: pointer;
-      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: all 0.2s;
     }
     .btn:hover { transform: translateY(-1px); }
-    .btn-primary { background: var(--primary); color: white; box-shadow: 0 4px 10px rgba(5, 150, 105, 0.2); }
-    .btn-primary:hover { background: var(--primary-hover); }
-    .btn-blue { background: var(--accent-blue); color: white; box-shadow: 0 4px 10px rgba(2, 132, 199, 0.2); }
-    .btn-orange { background: var(--accent-orange); color: white; box-shadow: 0 4px 10px rgba(234, 88, 12, 0.2); }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-blue { background: var(--accent-blue); color: white; }
+    .btn-orange { background: var(--accent-orange); color: white; }
     .btn-danger { background: var(--danger-light); color: var(--danger); border: 1px solid var(--danger-border); }
 
-    .form-grid { display: grid; grid-template-columns: 1fr; gap: 10px; max-width: 800px; }
-    @media(min-width: 600px) { .form-grid { grid-template-columns: 1fr 1fr; gap: 14px; } }
-    .form-group label { display: block; font-size: 11px; font-weight: 800; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase; }
-    .form-group input, .form-group select { width: 100%; padding: 10px 12px; border: 1.5px solid var(--card-border); border-radius: var(--radius-md); font-size: 13px; outline: none; background: #ffffff; }
-    .form-group input:focus, .form-group select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.12); }
+    .form-grid { display: grid; grid-template-columns: 1fr; gap: 12px; max-width: 800px; }
+    @media(min-width: 600px) { .form-grid { grid-template-columns: 1fr 1fr; gap: 16px; } }
+    .form-group label { display: block; font-size: 11.5px; font-weight: 800; color: var(--text-muted); margin-bottom: 5px; text-transform: uppercase; }
+    .form-group input, .form-group select { width: 100%; padding: 11px 13px; border: 1.5px solid var(--card-border); border-radius: var(--radius-md); font-size: 13.5px; outline: none; background: #f8fafc; }
+    .form-group input:focus, .form-group select:focus { border-color: var(--primary); background: #ffffff; }
 
     .modal-overlay {
       display: none;
@@ -342,8 +339,8 @@
     .modal-card {
       background: #ffffff;
       border-radius: var(--radius-xl);
-      padding: 20px;
-      max-width: 400px;
+      padding: 22px;
+      max-width: 420px;
       width: 100%;
       box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
     }
@@ -378,394 +375,455 @@
 </head>
 <body>
 
-  <!-- Top Brand Header -->
-  <header class="header-bar">
-    <div class="shop-details">
-      <h1>बेस्ट टू बेस्ट किराना स्टोर</h1>
-      <p>बड़बाद, पूर्वी टुंडी, धनबाद (828109) | प्रो: गोराचाँद मंडल | 6204339748</p>
-    </div>
-    <div class="shop-badge">
-      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
-        <span style="color:#34d399; font-weight:700;">🟢 ऑनलाइन POS</span>
-        <div id="liveClock" style="font-weight:700; color:#a7f3d0;"></div>
-      </div>
-      <div class="backup-btn-group">
-        <button class="btn-backup" onclick="exportBackup()">📥 बैकअप लें</button>
-        <button class="btn-backup" onclick="document.getElementById('importFile').click()">📤 लोड करें</button>
-        <button class="btn-backup" onclick="setUPIPrompt()">⚙️ UPI ID बदलें</button>
-        <input type="file" id="importFile" style="display:none" accept=".json" onchange="importBackup(event)">
-      </div>
-    </div>
-  </header>
-
-  <!-- Metric Stats -->
-  <div class="stats-row">
-    <div class="stat-card">
-      <div>
-        <div class="label">आज की कुल बिक्री</div>
-        <div class="val" style="color: var(--primary);">₹<span id="statTodaySales">0.00</span></div>
-      </div>
-      <div style="font-size:22px;">💰</div>
-    </div>
-    <div class="stat-card danger">
-      <div>
-        <div class="label">कुल उधारी बकाया</div>
-        <div class="val" style="color: var(--danger);">₹<span id="statTotalUdhar">0.00</span></div>
-      </div>
-      <div style="font-size:22px;">📕</div>
-    </div>
-    <div class="stat-card orange">
-      <div>
-        <div class="label">आज की खरीददारी</div>
-        <div class="val" style="color: var(--accent-orange);">₹<span id="statTodayPurchases">0.00</span></div>
-      </div>
-      <div style="font-size:22px;">🚚</div>
-    </div>
-    <div class="stat-card danger">
-      <div>
-        <div class="label">कम स्टॉक अलर्ट (≤5)</div>
-        <div class="val" style="color: var(--danger);" id="lowStockCount">0</div>
-      </div>
-      <div style="font-size:22px;">⚠️</div>
+  <!-- 1. SECURITY PIN SCREEN -->
+  <div id="securityScreen">
+    <div class="pin-box">
+      <div style="font-size:36px; margin-bottom:8px;">🔒</div>
+      <h2>बेस्ट टू बेस्ट किराना स्टोर</h2>
+      <p>सिस्टम खोलने के लिए 4-अंकों का पिन दर्ज करें</p>
+      <input type="password" id="inputPinField" class="pin-input" maxlength="4" placeholder="••••" autofocus onkeyup="if(event.key==='Enter') unlockApp()">
+      <button class="btn btn-primary" style="width:100%; padding:14px;" onclick="unlockApp()">सत्यापित करें व खोलें</button>
     </div>
   </div>
 
-  <!-- Navigation Tabs -->
-  <div class="tab-navigation">
-    <button class="tab-btn active" id="btn-pos" onclick="switchTab('pos-tab', 'btn-pos')"><span>🧾</span> 1. बिलिंग (POS)</button>
-    <button class="tab-btn" id="btn-sales" onclick="switchTab('sales-report-tab', 'btn-sales')"><span>📊</span> 2. बिक्री रिपोर्ट</button>
-    <button class="tab-btn" id="btn-mandi" onclick="switchTab('mandi-tab', 'btn-mandi')"><span>📝</span> 3. मंडी री-ऑर्डर लिस्ट</button>
-    <button class="tab-btn" id="btn-khata" onclick="switchTab('khata-tab', 'btn-khata')"><span>📕</span> 4. ग्राहक उधारी खाता</button>
-    <button class="tab-btn" id="btn-purchase" onclick="switchTab('purchase-tab', 'btn-purchase')"><span>🚚</span> 5. माल खरीद (स्टॉक)</button>
-    <button class="tab-btn" id="btn-inventory" onclick="switchTab('inventory-tab', 'btn-inventory')"><span>📦</span> 6. इन्वेंट्री व रेट</button>
-    <button class="tab-btn" id="btn-add" onclick="switchTab('add-product-tab', 'btn-add')"><span>➕</span> 7. नया सामान</button>
-  </div>
+  <!-- 2. MAIN APPLICATION (Unlocked Only via PIN) -->
+  <div id="mainApp">
 
-  <!-- TAB 1: POS COUNTER -->
-  <div id="pos-tab" class="tab-content active">
-    <div class="pos-layout">
-      
-      <!-- Catalog -->
-      <div class="card">
-        <div class="card-title">
-          <span>सामान चुनें (क्लिक करें)</span>
-          <span style="font-size:11px; color:var(--text-muted);">क्विक ऐड</span>
-        </div>
-        <input type="text" id="searchCatalog" class="search-input" placeholder="🔍 सामान खोजें..." onkeyup="filterCatalog()">
-        <div class="product-grid" id="productGrid"></div>
+    <!-- Header -->
+    <header class="header-bar">
+      <div class="shop-details">
+        <h1>बेस्ट टू बेस्ट किराना स्टोर</h1>
+        <p>बड़बाद, पूर्वी टुंडी, धनबाद (828109) | प्रो: गोराचाँद मंडल | 6204339748</p>
       </div>
+      <div class="shop-badge">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+          <span style="color:#34d399; font-weight:700;">🟢 ऑनलाइन POS</span>
+          <div id="liveClock" style="font-weight:700; color:#a7f3d0;"></div>
+        </div>
+        <div class="backup-btn-group">
+          <button class="btn-backup" onclick="exportBackup()">📥 बैकअप लें</button>
+          <button class="btn-backup" onclick="document.getElementById('importFile').click()">📤 लोड करें</button>
+          <button class="btn-backup" onclick="changePinPrompt()">🔑 पिन बदलें</button>
+          <button class="btn-backup" style="background:rgba(225,29,72,0.3); border-color:#fecdd3;" onclick="lockApp()">🔒 लॉक करें</button>
+          <input type="file" id="importFile" style="display:none" accept=".json" onchange="importBackup(event)">
+        </div>
+      </div>
+    </header>
 
-      <!-- Active Bill -->
-      <div class="card">
-        <div class="card-title">
-          <span>चालू बिल पर्ची</span>
-          <span style="font-size:13px; color:var(--primary); font-weight:800;" id="activeBillNo">INV-1</span>
+    <!-- Metric Stats -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div>
+          <div class="label">आज की कुल बिक्री</div>
+          <div class="val" style="color: var(--primary);">₹<span id="statTodaySales">0.00</span></div>
+        </div>
+        <div style="font-size:22px;">💰</div>
+      </div>
+      <div class="stat-card danger">
+        <div>
+          <div class="label">कुल उधारी बकाया</div>
+          <div class="val" style="color: var(--danger);">₹<span id="statTotalUdhar">0.00</span></div>
+        </div>
+        <div style="font-size:22px;">📕</div>
+      </div>
+      <div class="stat-card orange">
+        <div>
+          <div class="label">आज की खरीददारी</div>
+          <div class="val" style="color: var(--accent-orange);">₹<span id="statTodayPurchases">0.00</span></div>
+        </div>
+        <div style="font-size:22px;">🚚</div>
+      </div>
+      <div class="stat-card danger">
+        <div>
+          <div class="label">कम स्टॉक अलर्ट (≤5)</div>
+          <div class="val" style="color: var(--danger);" id="lowStockCount">0</div>
+        </div>
+        <div style="font-size:22px;">⚠️</div>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="tab-navigation">
+      <button class="tab-btn active" id="btn-pos" onclick="switchTab('pos-tab', 'btn-pos')"><span>🧾</span> 1. बिलिंग (POS)</button>
+      <button class="tab-btn" id="btn-sales" onclick="switchTab('sales-report-tab', 'btn-sales')"><span>📊</span> 2. बिक्री रिपोर्ट</button>
+      <button class="tab-btn" id="btn-mandi" onclick="switchTab('mandi-tab', 'btn-mandi')"><span>📝</span> 3. मंडी री-ऑर्डर लिस्ट</button>
+      <button class="tab-btn" id="btn-khata" onclick="switchTab('khata-tab', 'btn-khata')"><span>📕</span> 4. ग्राहक उधारी खाता</button>
+      <button class="tab-btn" id="btn-purchase" onclick="switchTab('purchase-tab', 'btn-purchase')"><span>🚚</span> 5. माल खरीद (स्टॉक)</button>
+      <button class="tab-btn" id="btn-inventory" onclick="switchTab('inventory-tab', 'btn-inventory')"><span>📦</span> 6. इन्वेंट्री व रेट</button>
+      <button class="tab-btn" id="btn-add" onclick="switchTab('add-product-tab', 'btn-add')"><span>➕</span> 7. नया सामान</button>
+    </div>
+
+    <!-- TAB 1: POS COUNTER -->
+    <div id="pos-tab" class="tab-content active">
+      <div class="pos-layout">
+        
+        <!-- Catalog -->
+        <div class="card">
+          <div class="card-title">
+            <span>सामान चुनें (क्लिक करें)</span>
+            <span style="font-size:11px; color:var(--text-muted);">क्विक ऐड</span>
+          </div>
+          <input type="text" id="searchCatalog" class="search-input" placeholder="🔍 सामान खोजें..." onkeyup="filterCatalog()">
+          <div class="product-grid" id="productGrid"></div>
         </div>
 
-        <div class="table-container" style="max-height: 230px; overflow-y: auto;">
+        <!-- Active Bill -->
+        <div class="card">
+          <div class="card-title">
+            <span>चालू बिल पर्ची</span>
+            <span style="font-size:13px; color:var(--primary); font-weight:800;" id="activeBillNo">INV-1</span>
+          </div>
+
+          <div class="table-container" style="max-height: 230px; overflow-y: auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th style="text-align:left;">सामान</th>
+                  <th>मात्रा</th>
+                  <th>शॉर्टकट</th>
+                  <th>रेट</th>
+                  <th>कुल</th>
+                  <th>×</th>
+                </tr>
+              </thead>
+              <tbody id="billBody"></tbody>
+            </table>
+          </div>
+
+          <div class="bill-summary">
+            <div>
+              <div style="font-size:11px; color:var(--text-muted); font-weight:700;">आइटम: <b id="billItemCount">0</b></div>
+              <button class="shortcut-btn" onclick="applyDiscount(10)">-₹10 छूट</button>
+            </div>
+            <div>
+              <div style="font-size:11px; color:var(--text-muted); font-weight:700;">कुल देय राशि:</div>
+              <div style="font-size:24px; font-weight:800; color:var(--dark-surface);">₹<span id="grandTotal">0.00</span></div>
+            </div>
+          </div>
+
+          <!-- Permanent Static UPI QR Box -->
+          <div class="qr-pay-panel">
+            <img id="screenQRImg" class="qr-img" src="" alt="UPI QR Code">
+            <div>
+              <div style="font-size:12.5px; font-weight:800; color:var(--dark-surface);">दुकान का UPI QR कोड</div>
+              <div style="font-size:11px; color:var(--text-muted);" id="upiIdDisplay">UPI: 6204339748-3@ybl</div>
+              <div style="font-size:11px; color:var(--primary); font-weight:700; margin-top:2px;">ग्राहक स्कैन करके भुगतान कर सकते हैं</div>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px;">
+            <button class="btn btn-primary" onclick="completeSaleAndPrint('thermal', 'CASH')">🖨️ थर्मल प्रिंट (80mm)</button>
+            <button class="btn btn-blue" onclick="completeSaleAndPrint('a4', 'CASH')">📄 A4 पेपर प्रिंट</button>
+          </div>
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px;">
+            <button class="btn btn-orange" onclick="openKhataModal()">📕 उधार में दर्ज करें</button>
+            <button class="btn btn-danger" onclick="clearBill()">बिल रद्द करें</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- TAB 2: SALES REPORT -->
+    <div id="sales-report-tab" class="tab-content">
+      <div class="card">
+        <div class="card-title">
+          <span>बिक्री रिपोर्ट व रसीद इतिहास</span>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <input type="date" id="salesFilterDate" style="padding:5px 8px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:12px; font-weight:700;" onchange="renderSalesReport()">
+            <button class="action-btn edit" onclick="setTodaySalesFilter()">आज</button>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 14px;">
+          <div class="card" style="padding:14px; background:#f8fafc; border:1px solid #e2e8f0;">
+            <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase;">तारीख की बिक्री</div>
+            <div style="font-size:20px; font-weight:800; color:var(--primary); margin-top:3px;">₹<span id="repTotalSales">0.00</span></div>
+          </div>
+          <div class="card" style="padding:14px; background:#f8fafc; border:1px solid #e2e8f0;">
+            <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase;">तारीख का लाभ</div>
+            <div style="font-size:20px; font-weight:800; color:var(--accent-blue); margin-top:3px;">+₹<span id="repTotalProfit">0.00</span></div>
+          </div>
+          <div class="card" style="padding:14px; background:#f8fafc; border:1px solid #e2e8f0;">
+            <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase;">काटे गए बिल</div>
+            <div style="font-size:20px; font-weight:800; color:var(--dark-surface); margin-top:3px;" id="repTotalOrders">0</div>
+          </div>
+        </div>
+
+        <div class="table-container" style="max-height: 400px; overflow-y: auto;">
           <table>
             <thead>
               <tr>
+                <th>बिल नं.</th>
+                <th>समय</th>
                 <th style="text-align:left;">सामान</th>
-                <th>मात्रा</th>
-                <th>शॉर्टकट</th>
-                <th>रेट</th>
-                <th>कुल</th>
-                <th>×</th>
+                <th>प्रकार</th>
+                <th>कुल बिक्री (₹)</th>
+                <th>शुद्ध लाभ (₹)</th>
+                <th>प्रिंट</th>
               </tr>
             </thead>
-            <tbody id="billBody"></tbody>
+            <tbody id="salesHistoryBody"></tbody>
           </table>
         </div>
+      </div>
+    </div>
 
-        <div class="bill-summary">
-          <div>
-            <div style="font-size:11px; color:var(--text-muted); font-weight:700;">आइटम: <b id="billItemCount">0</b></div>
-            <button class="shortcut-btn" onclick="applyDiscount(10)">-₹10 छूट</button>
+    <!-- TAB 3: MANDI RE-ORDER LIST -->
+    <div id="mandi-tab" class="tab-content">
+      <div class="card">
+        <div class="card-title">
+          <span>थोक मंडी री-ऑर्डर लिस्ट (कम व 0 स्टॉक वाले सामान)</span>
+          <button class="action-btn whatsapp" onclick="shareMandiListWhatsApp()">📲 महाजन को WhatsApp भेजें</button>
+        </div>
+
+        <div class="table-container" style="max-height: 420px; overflow-y: auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>क्र.सं.</th>
+                <th style="text-align:left;">सामान का नाम</th>
+                <th>यूनिट</th>
+                <th>वर्तमान बचा स्टॉक</th>
+                <th>खरीद दर (₹)</th>
+                <th>स्थिति</th>
+              </tr>
+            </thead>
+            <tbody id="mandiOrderTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: UDHAR / KHATA MANAGEMENT -->
+    <div id="khata-tab" class="tab-content">
+      <div class="card" style="margin-bottom: 14px;">
+        <div class="card-title"><span>+ ग्राहक का बकाया जमा दर्ज करें</span></div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>ग्राहक का नाम</label>
+            <input type="text" id="khataCustName" placeholder="उदा: रमेश यादव">
           </div>
-          <div>
-            <div style="font-size:11px; color:var(--text-muted); font-weight:700;">कुल देय राशि:</div>
-            <div style="font-size:24px; font-weight:800; color:var(--dark-navy);">₹<span id="grandTotal">0.00</span></div>
+          <div class="form-group">
+            <label>जमा की गई राशि (₹)</label>
+            <input type="number" step="any" id="khataPaymentAmount" placeholder="उदा: 500">
           </div>
         </div>
+        <div style="margin-top: 10px;">
+          <button class="btn btn-primary" style="width:100%;" onclick="receiveKhataPayment()">💰 बकाया रकम जमा दर्ज करें</button>
+        </div>
+      </div>
 
-        <!-- Permanent Static UPI QR Box -->
-        <div class="qr-pay-panel">
-          <img id="screenQRImg" class="qr-img" src="" alt="UPI QR Code">
-          <div>
-            <div style="font-size:12.5px; font-weight:800; color:var(--dark-navy);">दुकान का UPI QR कोड</div>
-            <div style="font-size:11px; color:var(--text-muted);" id="upiIdDisplay">UPI: 6204339748-3@ybl</div>
-            <div style="font-size:11px; color:var(--primary); font-weight:700; margin-top:2px;">ग्राहक स्कैन करके भुगतान कर सकते हैं</div>
+      <div class="card">
+        <div class="card-title">
+          <span>दुकान के सभी उधार ग्राहकों की लिस्ट</span>
+          <input type="text" id="searchKhata" class="search-input" style="max-width:220px; margin:0;" placeholder="ग्राहक खोजें..." onkeyup="filterKhataTable()">
+        </div>
+
+        <div class="table-container" style="max-height: 400px; overflow-y: auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>क्र.सं.</th>
+                <th style="text-align:left;">ग्राहक का नाम</th>
+                <th>मोबाइल नंबर</th>
+                <th>कुल बकाया राशि (₹)</th>
+                <th>अंतिम लेनदेन तारीख</th>
+                <th>WhatsApp तकादा</th>
+                <th>हटाएं</th>
+              </tr>
+            </thead>
+            <tbody id="khataTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 5: PURCHASE STOCK ENTRY -->
+    <div id="purchase-tab" class="tab-content">
+      <div class="card" style="margin-bottom: 14px;">
+        <div class="card-title"><span>+ नया माल खरीदा (स्टॉक जोड़ें)</span></div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>सामान चुनें</label>
+            <select id="buyProductSelect" onchange="onPurchaseProductSelect()"></select>
+          </div>
+          <div class="form-group">
+            <label>सप्लायर / महाजन का नाम</label>
+            <input type="text" id="buySupplier" placeholder="उदा: मंडी / गुप्ता ट्रेडर्स">
+          </div>
+          <div class="form-group">
+            <label>खरीदी मात्रा (Stock Added)</label>
+            <input type="number" step="any" id="buyQty" placeholder="उदा: 50">
+          </div>
+          <div class="form-group">
+            <label>खरीद दर प्रति इकाई (₹)</label>
+            <input type="number" step="any" id="buyRate" placeholder="उदा: 38">
           </div>
         </div>
-
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px;">
-          <button class="btn btn-primary" onclick="completeSaleAndPrint('thermal', 'CASH')">🖨️ थर्मल प्रिंट (80mm)</button>
-          <button class="btn btn-blue" onclick="completeSaleAndPrint('a4', 'CASH')">📄 A4 पेपर प्रिंट</button>
-        </div>
-        
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px;">
-          <button class="btn btn-orange" onclick="openKhataModal()">📕 उधार में दर्ज करें</button>
-          <button class="btn btn-danger" onclick="clearBill()">बिल रद्द करें</button>
+        <div style="margin-top: 12px;">
+          <button class="btn btn-primary" style="width:100%;" onclick="recordStockPurchase()">🚚 नया माल इन्वेंट्री में जोड़ें व सुरक्षित करें</button>
         </div>
       </div>
 
+      <div class="card">
+        <div class="card-title"><span>खरीददारी हिसाब (Purchase History)</span></div>
+        <div class="table-container" style="max-height: 320px; overflow-y: auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>तारीख</th>
+                <th style="text-align:left;">सामान</th>
+                <th>सप्लायर</th>
+                <th>मात्रा</th>
+                <th>दर (₹)</th>
+                <th>लागत (₹)</th>
+              </tr>
+            </thead>
+            <tbody id="purchaseHistoryBody"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
+
+    <!-- TAB 6: INVENTORY & STOCK -->
+    <div id="inventory-tab" class="tab-content">
+      <div class="card">
+        <div class="card-title">
+          <span>स्टोर स्टॉक, खरीद रेट (CP) व बिक्री रेट (SP)</span>
+        </div>
+        <input type="text" id="searchInventory" class="search-input" placeholder="🔍 स्टॉक में खोजें..." onkeyup="filterInventoryTable()">
+
+        <div class="table-container" style="max-height: 440px; overflow-y: auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>क्र.सं.</th>
+                <th style="text-align:left;">सामान</th>
+                <th>यूनिट</th>
+                <th>खरीद रेट (CP)</th>
+                <th>बिक्री रेट (SP)</th>
+                <th>लाभ/इकाई</th>
+                <th>स्टॉक</th>
+                <th>रेट बदलें</th>
+                <th>स्टॉक बदलें</th>
+                <th>डिलीट</th>
+              </tr>
+            </thead>
+            <tbody id="inventoryTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 7: ADD PRODUCT -->
+    <div id="add-product-tab" class="tab-content">
+      <div class="card">
+        <div class="card-title"><span>+ नया सामान लिस्ट करें (First Time Entry)</span></div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>सामान का नाम</label>
+            <input type="text" id="pName" placeholder="उदा: अरहर दाल / चीनी">
+          </div>
+          <div class="form-group">
+            <label>यूनिट (इकाई)</label>
+            <select id="pUnit">
+              <option value="Kg">किलो (Kg - ग्राम सपोर्ट)</option>
+              <option value="Ltr">लीटर (Ltr - ml सपोर्ट)</option>
+              <option value="Pc">पीस (Pcs)</option>
+              <option value="Pkt">पैकेट (Pkt)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>खरीद रेट - Cost Price (₹)</label>
+            <input type="number" step="any" id="pCostPrice" placeholder="उदा: 100">
+          </div>
+          <div class="form-group">
+            <label>बिक्री रेट - Selling Price (₹)</label>
+            <input type="number" step="any" id="pPrice" placeholder="उदा: 120">
+          </div>
+          <div class="form-group">
+            <label>स्टॉक मात्रा</label>
+            <input type="number" step="any" id="pStock" placeholder="उदा: 50">
+          </div>
+        </div>
+        <div style="margin-top: 14px;">
+          <button class="btn btn-primary" style="width:100%;" onclick="addProduct()">💾 नया सामान सुरक्षित करें</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal for Udhar Billing -->
+    <div class="modal-overlay" id="khataModal">
+      <div class="modal-card">
+        <h3 style="font-size:16px; font-weight:800; margin-bottom:12px;">उधार बिल (ग्राहक खाता)</h3>
+        <div class="form-group">
+          <label>ग्राहक का नाम:</label>
+          <input type="text" id="modalKhataName" placeholder="उदा: संतोष मंडल">
+        </div>
+        <div class="form-group" style="margin-top:10px;">
+          <label>मोबाइल नंबर (WhatsApp):</label>
+          <input type="number" id="modalKhataPhone" placeholder="उदा: 9876543210">
+        </div>
+        <div style="display:flex; gap:8px; margin-top:16px;">
+          <button class="btn btn-orange" style="flex:1;" onclick="submitKhataBill()">सुरक्षित व प्रिंट करें</button>
+          <button class="btn btn-danger" onclick="closeKhataModal()">रद्द</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- DEDICATED PRINT CONTAINER -->
+    <div id="print-container"></div>
+
   </div>
-
-  <!-- TAB 2: SALES REPORT -->
-  <div id="sales-report-tab" class="tab-content">
-    <div class="card">
-      <div class="card-title">
-        <span>बिक्री रिपोर्ट व रसीद इतिहास</span>
-        <div style="display:flex; align-items:center; gap:6px;">
-          <input type="date" id="salesFilterDate" style="padding:5px 8px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:12px; font-weight:700;" onchange="renderSalesReport()">
-          <button class="action-btn edit" onclick="setTodaySalesFilter()">आज</button>
-        </div>
-      </div>
-
-      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 14px;">
-        <div class="card" style="padding:14px; background:#f8fafc; border:1px solid #e2e8f0;">
-          <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase;">तारीख की बिक्री</div>
-          <div style="font-size:20px; font-weight:800; color:var(--primary); margin-top:3px;">₹<span id="repTotalSales">0.00</span></div>
-        </div>
-        <div class="card" style="padding:14px; background:#f8fafc; border:1px solid #e2e8f0;">
-          <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase;">तारीख का लाभ</div>
-          <div style="font-size:20px; font-weight:800; color:var(--accent-blue); margin-top:3px;">+₹<span id="repTotalProfit">0.00</span></div>
-        </div>
-        <div class="card" style="padding:14px; background:#f8fafc; border:1px solid #e2e8f0;">
-          <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase;">काटे गए बिल</div>
-          <div style="font-size:20px; font-weight:800; color:var(--dark-navy); margin-top:3px;" id="repTotalOrders">0</div>
-        </div>
-      </div>
-
-      <div class="table-container" style="max-height: 400px; overflow-y: auto;">
-        <table>
-          <thead>
-            <tr>
-              <th>बिल नं.</th>
-              <th>समय</th>
-              <th style="text-align:left;">सामान</th>
-              <th>प्रकार</th>
-              <th>कुल बिक्री (₹)</th>
-              <th>शुद्ध लाभ (₹)</th>
-              <th>प्रिंट</th>
-            </tr>
-          </thead>
-          <tbody id="salesHistoryBody"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- TAB 3: MANDI RE-ORDER LIST -->
-  <div id="mandi-tab" class="tab-content">
-    <div class="card">
-      <div class="card-title">
-        <span>थोक मंडी री-ऑर्डर लिस्ट (कम व 0 स्टॉक वाले सामान)</span>
-        <button class="action-btn whatsapp" onclick="shareMandiListWhatsApp()">📲 महाजन को WhatsApp भेजें</button>
-      </div>
-
-      <div class="table-container" style="max-height: 420px; overflow-y: auto;">
-        <table>
-          <thead>
-            <tr>
-              <th>क्र.सं.</th>
-              <th style="text-align:left;">सामान का नाम</th>
-              <th>यूनिट</th>
-              <th>वर्तमान बचा स्टॉक</th>
-              <th>खरीद दर (₹)</th>
-              <th>स्थिति</th>
-            </tr>
-          </thead>
-          <tbody id="mandiOrderTableBody"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- TAB 4: UDHAR / KHATA MANAGEMENT -->
-  <div id="khata-tab" class="tab-content">
-    <div class="card" style="margin-bottom: 14px;">
-      <div class="card-title"><span>+ ग्राहक का बकाया जमा दर्ज करें</span></div>
-      <div class="form-grid">
-        <div class="form-group">
-          <label>ग्राहक का नाम</label>
-          <input type="text" id="khataCustName" placeholder="उदा: रमेश यादव">
-        </div>
-        <div class="form-group">
-          <label>जमा की गई राशि (₹)</label>
-          <input type="number" step="any" id="khataPaymentAmount" placeholder="उदा: 500">
-        </div>
-      </div>
-      <div style="margin-top: 10px;">
-        <button class="btn btn-primary" style="width:100%;" onclick="receiveKhataPayment()">💰 बकाया रकम जमा दर्ज करें</button>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">
-        <span>दुकान के सभी उधार ग्राहकों की लिस्ट</span>
-        <input type="text" id="searchKhata" class="search-input" style="max-width:220px; margin:0;" placeholder="ग्राहक खोजें..." onkeyup="filterKhataTable()">
-      </div>
-
-      <div class="table-container" style="max-height: 400px; overflow-y: auto;">
-        <table>
-          <thead>
-            <tr>
-              <th>क्र.सं.</th>
-              <th style="text-align:left;">ग्राहक का नाम</th>
-              <th>मोबाइल नंबर</th>
-              <th>कुल बकाया राशि (₹)</th>
-              <th>अंतिम लेनदेन तारीख</th>
-              <th>WhatsApp तकादा</th>
-              <th>हटाएं</th>
-            </tr>
-          </thead>
-          <tbody id="khataTableBody"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- TAB 5: PURCHASE STOCK ENTRY -->
-  <div id="purchase-tab" class="tab-content">
-    <div class="card" style="margin-bottom: 14px;">
-      <div class="card-title"><span>+ नया माल खरीदा (स्टॉक जोड़ें)</span></div>
-      <div class="form-grid">
-        <div class="form-group">
-          <label>सामान चुनें</label>
-          <select id="buyProductSelect" onchange="onPurchaseProductSelect()"></select>
-        </div>
-        <div class="form-group">
-          <label>सप्लायर / महाजन का नाम</label>
-          <input type="text" id="buySupplier" placeholder="उदा: मंडी / गुप्ता ट्रेडर्स">
-        </div>
-        <div class="form-group">
-          <label>खरीदी मात्रा (Stock Added)</label>
-          <input type="number" step="any" id="buyQty" placeholder="उदा: 50">
-        </div>
-        <div class="form-group">
-          <label>खरीद दर प्रति इकाई (₹)</label>
-          <input type="number" step="any" id="buyRate" placeholder="उदा: 38">
-        </div>
-      </div>
-      <div style="margin-top: 12px;">
-        <button class="btn btn-primary" style="width:100%;" onclick="recordStockPurchase()">🚚 नया माल इन्वेंट्री में जोड़ें व सुरक्षित करें</button>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title"><span>खरीददारी हिसाब (Purchase History)</span></div>
-      <div class="table-container" style="max-height: 320px; overflow-y: auto;">
-        <table>
-          <thead>
-            <tr>
-              <th>तारीख</th>
-              <th style="text-align:left;">सामान</th>
-              <th>सप्लायर</th>
-              <th>मात्रा</th>
-              <th>दर (₹)</th>
-              <th>लागत (₹)</th>
-            </tr>
-          </thead>
-          <tbody id="purchaseHistoryBody"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- TAB 6: INVENTORY & STOCK -->
-  <div id="inventory-tab" class="tab-content">
-    <div class="card">
-      <div class="card-title">
-        <span>स्टोर स्टॉक, खरीद रेट (CP) व बिक्री रेट (SP)</span>
-      </div>
-      <input type="text" id="searchInventory" class="search-input" placeholder="🔍 स्टॉक में खोजें..." onkeyup="filterInventoryTable()">
-
-      <div class="table-container" style="max-height: 440px; overflow-y: auto;">
-        <table>
-          <thead>
-            <tr>
-              <th>क्र.सं.</th>
-              <th style="text-align:left;">सामान</th>
-              <th>यूनिट</th>
-              <th>खरीद रेट (CP)</th>
-              <th>बिक्री रेट (SP)</th>
-              <th>लाभ/इकाई</th>
-              <th>स्टॉक</th>
-              <th>रेट बदलें</th>
-              <th>स्टॉक बदलें</th>
-              <th>डिलीट</th>
-            </tr>
-          </thead>
-          <tbody id="inventoryTableBody"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- TAB 7: ADD PRODUCT -->
-  <div id="add-product-tab" class="tab-content">
-    <div class="card">
-      <div class="card-title"><span>+ नया सामान लिस्ट करें (First Time Entry)</span></div>
-      <div class="form-grid">
-        <div class="form-group">
-          <label>सामान का नाम</label>
-          <input type="text" id="pName" placeholder="उदा: अरहर दाल / चीनी">
-        </div>
-        <div class="form-group">
-          <label>यूनिट (इकाई)</label>
-          <select id="pUnit">
-            <option value="Kg">किलो (Kg - ग्राम सपोर्ट)</option>
-            <option value="Ltr">लीटर (Ltr - ml सपोर्ट)</option>
-            <option value="Pc">पीस (Pcs)</option>
-            <option value="Pkt">पैकेट (Pkt)</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>खरीद रेट - Cost Price (₹)</label>
-          <input type="number" step="any" id="pCostPrice" placeholder="उदा: 100">
-        </div>
-        <div class="form-group">
-          <label>बिक्री रेट - Selling Price (₹)</label>
-          <input type="number" step="any" id="pPrice" placeholder="उदा: 120">
-        </div>
-        <div class="form-group">
-          <label>स्टॉक मात्रा</label>
-          <input type="number" step="any" id="pStock" placeholder="उदा: 50">
-        </div>
-      </div>
-      <div style="margin-top: 14px;">
-        <button class="btn btn-primary" style="width:100%;" onclick="addProduct()">💾 नया सामान सुरक्षित करें</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal for Udhar Billing -->
-  <div class="modal-overlay" id="khataModal">
-    <div class="modal-card">
-      <h3 style="font-size:16px; font-weight:800; margin-bottom:12px;">उधार बिल (ग्राहक खाता)</h3>
-      <div class="form-group">
-        <label>ग्राहक का नाम:</label>
-        <input type="text" id="modalKhataName" placeholder="उदा: संतोष मंडल">
-      </div>
-      <div class="form-group" style="margin-top:10px;">
-        <label>मोबाइल नंबर (WhatsApp):</label>
-        <input type="number" id="modalKhataPhone" placeholder="उदा: 9876543210">
-      </div>
-      <div style="display:flex; gap:8px; margin-top:16px;">
-        <button class="btn btn-orange" style="flex:1;" onclick="submitKhataBill()">सुरक्षित व प्रिंट करें</button>
-        <button class="btn btn-danger" onclick="closeKhataModal()">रद्द</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- DEDICATED PRINT CONTAINER -->
-  <div id="print-container"></div>
 
   <script>
-    let inventory = JSON.parse(localStorage.getItem('mandal_pos_pro')) || [
+    // ==============================================
+    // SECURITY PIN LOGIC
+    // ==============================================
+    let currentSecurityPin = localStorage.getItem('mandal_app_pin') || '1234';
+
+    function unlockApp() {
+      const enteredPin = document.getElementById('inputPinField').value.trim();
+      if (enteredPin === currentSecurityPin) {
+        document.getElementById('securityScreen').style.display = 'none';
+        document.getElementById('mainApp').style.display = 'block';
+        renderUI();
+      } else {
+        alert('गलत पिन! कृपया सही 4-अंकों का पिन दर्ज करें।');
+        document.getElementById('inputPinField').value = '';
+        document.getElementById('inputPinField').focus();
+      }
+    }
+
+    function lockApp() {
+      document.getElementById('mainApp').style.display = 'none';
+      document.getElementById('securityScreen').style.display = 'flex';
+      document.getElementById('inputPinField').value = '';
+      document.getElementById('inputPinField').focus();
+    }
+
+    function changePinPrompt() {
+      const oldPin = prompt('वर्तमान सुरक्षा पिन दर्ज करें:');
+      if (oldPin === currentSecurityPin) {
+        const newPin = prompt('नया 4-अंकों का पिन दर्ज करें:');
+        if (newPin && newPin.trim().length === 4 && !isNaN(newPin)) {
+          currentSecurityPin = newPin.trim();
+          localStorage.setItem('mandal_app_pin', currentSecurityPin);
+          alert('सुरक्षा पिन सफलतापूर्वक बदल दिया गया! नया पिन: ' + currentSecurityPin);
+        } else {
+          alert('अमान्य पिन! कृपया केवल 4 अंकों का नंबर दर्ज करें।');
+        }
+      } else if (oldPin !== null) {
+        alert('गलत पुराना पिन!');
+      }
+    }
+
+    // ==============================================
+    // MAIN APP DATA & STORAGE
+    // ==============================================
+    let inventory = JSON.parse(localStorage.getItem('mandal_pos_stable')) || [
       { id: 101, name: 'चीनी (Sugar)', unit: 'Kg', costPrice: 38, price: 44, stock: 50 },
       { id: 102, name: 'अरहर दाल', unit: 'Kg', costPrice: 135, price: 160, stock: 30 },
       { id: 103, name: 'सरसों तेल 1L', unit: 'Ltr', costPrice: 120, price: 140, stock: 25 },
@@ -773,15 +831,14 @@
       { id: 105, name: 'लाइफबॉय साबुन', unit: 'Pc', costPrice: 8, price: 10, stock: 0 }
     ];
 
-    let salesHistory = JSON.parse(localStorage.getItem('mandal_sales_pro')) || [];
-    let purchaseHistory = JSON.parse(localStorage.getItem('mandal_purchase_pro')) || [];
-    let khataLedger = JSON.parse(localStorage.getItem('mandal_khata_pro')) || [];
+    let salesHistory = JSON.parse(localStorage.getItem('mandal_sales_stable')) || [];
+    let purchaseHistory = JSON.parse(localStorage.getItem('mandal_purchase_stable')) || [];
+    let khataLedger = JSON.parse(localStorage.getItem('mandal_khata_stable')) || [];
     let upiID = localStorage.getItem('mandal_upi_id') || '6204339748-3@ybl';
 
     let currentBill = [];
     let billDiscount = 0;
 
-    // Smart Auto Emoji Function
     function getProductEmoji(name) {
       const n = name.toLowerCase();
       if (n.includes('तेल') || n.includes('oil') || n.includes('रिफाइंड')) return '🛢️';
@@ -845,21 +902,11 @@
     setInterval(updateClock, 1000);
     updateClock();
 
-    function setUPIPrompt() {
-      const newUPI = prompt('अपनी दुकान की UPI ID दर्ज करें:', upiID);
-      if (newUPI && newUPI.trim() !== '') {
-        upiID = newUPI.trim();
-        localStorage.setItem('mandal_upi_id', upiID);
-        document.getElementById('upiIdDisplay').innerText = 'UPI: ' + upiID;
-        updateStaticQRCode();
-      }
-    }
-
     function saveState() {
-      localStorage.setItem('mandal_pos_pro', JSON.stringify(inventory));
-      localStorage.setItem('mandal_sales_pro', JSON.stringify(salesHistory));
-      localStorage.setItem('mandal_purchase_pro', JSON.stringify(purchaseHistory));
-      localStorage.setItem('mandal_khata_pro', JSON.stringify(khataLedger));
+      localStorage.setItem('mandal_pos_stable', JSON.stringify(inventory));
+      localStorage.setItem('mandal_sales_stable', JSON.stringify(salesHistory));
+      localStorage.setItem('mandal_purchase_stable', JSON.stringify(purchaseHistory));
+      localStorage.setItem('mandal_khata_stable', JSON.stringify(khataLedger));
       renderUI();
     }
 
@@ -887,7 +934,6 @@
       updateStaticQRCode();
     }
 
-    // Permanent Static Standard UPI String
     function getStaticUPIString() {
       return `upi://pay?pa=${encodeURIComponent(upiID)}&pn=${encodeURIComponent('Best To Best Kirana')}&cu=INR`;
     }
@@ -1030,7 +1076,7 @@
               `}
             </td>
             <td>₹${item.price}</td>
-            <td style="font-weight:800; color:var(--dark-navy);">₹${itemTotal.toFixed(2)}</td>
+            <td style="font-weight:800; color:var(--dark-surface);">${itemTotal.toFixed(2)}</td>
             <td><button class="action-btn del" onclick="removeFromBill(${item.id})">×</button></td>
           `;
           tbody.appendChild(tr);
@@ -1048,7 +1094,7 @@
       renderBill();
     }
 
-    // Native Print Logic
+    // Direct Native Printing
     function generatePrintHTML(order, mode) {
       let rowsHtml = '';
       order.items.forEach((item, idx) => {
@@ -1388,7 +1434,7 @@
           <td style="color:var(--text-muted); font-weight:600;">${order.time}</td>
           <td style="text-align:left; font-size:11.5px; color:#334155;">${itemsSummary}</td>
           <td><span class="action-btn ${order.paymentType === 'UDHAR' ? 'del' : 'stock'}">${order.paymentType || 'CASH'}</span></td>
-          <td style="font-weight:800; color:var(--dark-navy);">₹${order.grandTotal.toFixed(2)}</td>
+          <td style="font-weight:800; color:var(--dark-surface);">₹${order.grandTotal.toFixed(2)}</td>
           <td style="font-weight:800; color:var(--accent-blue);">+₹${order.profit.toFixed(2)}</td>
           <td>
             <button class="action-btn reprint" onclick="reprintOrder('${order.billNo}', 'thermal')">थर्मल</button>
@@ -1585,6 +1631,7 @@
         purchaseHistory: purchaseHistory,
         khataLedger: khataLedger,
         upiID: upiID,
+        securityPin: currentSecurityPin,
         invoiceDate: localStorage.getItem('mandal_inv_date'),
         invoiceSeq: localStorage.getItem('mandal_inv_seq')
       };
@@ -1608,6 +1655,10 @@
             purchaseHistory = data.purchaseHistory || [];
             khataLedger = data.khataLedger || [];
             if (data.upiID) upiID = data.upiID;
+            if (data.securityPin) {
+              currentSecurityPin = data.securityPin;
+              localStorage.setItem('mandal_app_pin', currentSecurityPin);
+            }
             if (data.invoiceDate) localStorage.setItem('mandal_inv_date', data.invoiceDate);
             if (data.invoiceSeq) localStorage.setItem('mandal_inv_seq', data.invoiceSeq);
             saveState();
@@ -1619,9 +1670,6 @@
       };
       reader.readAsText(file);
     }
-
-    // Initialize
-    renderUI();
   </script>
 
 </body>
