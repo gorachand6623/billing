@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   --primary: #059669;
   --primary-hover: #047857;
   --primary-light: #ecfdf5;
@@ -223,19 +223,34 @@ body {
   margin-top: 3px; 
 }
 
-/* Navigation Tabs */
+/* Navigation Tabs with Custom Scrollbar */
 .tab-navigation {
   display: flex;
   gap: 8px;
   background: #e2e8f0;
-  padding: 5px;
+  padding: 8px;
   border-radius: var(--radius-lg);
   margin-bottom: 18px;
   overflow-x: auto;
   white-space: nowrap;
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary) #cbd5e1;
 }
 
-.tab-navigation::-webkit-scrollbar { display: none; }
+.tab-navigation::-webkit-scrollbar {
+  height: 6px;
+  display: block !important;
+}
+
+.tab-navigation::-webkit-scrollbar-track {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.tab-navigation::-webkit-scrollbar-thumb {
+  background: var(--primary);
+  border-radius: 4px;
+}
 
 .tab-btn {
   padding: 10px 16px;
@@ -313,7 +328,7 @@ body {
   background: #ffffff; 
 }
 
-/* Catalog Product Grid */
+/* Product Cards */
 .product-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(115px, 1fr));
