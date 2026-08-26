@@ -873,8 +873,97 @@ function showAllPurchaseHistory() {
   renderPurchaseHistory();
 }
 
+// ==========================================================
+// 8. OCR BILL SCANNER & PARSER (CAMERA + GALLERY)
+// ==========================================================
+async function processBillImage(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const statusText = document.getElementById('ocrStatusText');
+  statusText.innerHTML = '⏳ बिल स्कैन हो रहा है... (कृपया 5-8 सेकंड रुकें)';
+  statusText.style.color = 'var(--primary)';
+
+  try {
+    const worker = await Tesseract.createWorker('eng');
+    statusText.innerText = '⏳ अक्षरों को पहचाना जा रहा है...';
+    const ret = await worker.recognize(file);
+    const rawText = ret.data.text;
+    await worker.terminate();
+
+    if (!rawText || rawText.trim().length === 0) {
+      statusText.innerText = '❌ फोटो से कोई लिखावट नहीं पढ़ी जा सकी! कृपया साफ़ फोटो चुनें।';
+      statusText.style.color = 'var(--danger)';
+      return;
+    }
+
+    statusText.innerText = '✅ बिल सफलतापूर्वक पढ़ लिया गया!';
+    parseAndAutoAddBillItems(rawText);
+
+  } catch (error) {
+    console.error('OCR Error:', error);
+    statusText.innerHTML = '❌ स्कैनिंग में रुकावट आई। कृपया दोबारा कोशिश करें।';
+    statusText.style.color = 'var(--danger)';
+  }
+}
+
+function parseAndAutoAddBillItems(text) {
+  const lines = text.split('\n');
+  let matchedCount = 0;
+  let newAddedCount = 0;
+
+  lines.forEach(line => {
+    let cleanLine = line.trim();
+    if (cleanLine.length < 3) return;
+
+    const numbers = cleanLine.match(/\d+(\.\d+)?/g);
+    let rawName = cleanLine.replace(/[\d\.\,\:\-\_\/\*\#\@\₹\$\%\(\)]/g, '').trim();
+
+    if (numbers && numbers.length >= 1) {
+      const parsedQty = parseFloat(numbers[0]) || 1;
+      const parsedRate = numbers.length >= 2 ? (parseFloat(numbers[1]) || 0) : 0;
+
+      let existing = null;
+      if (rawName.length >= 2) {
+        existing = inventory.find(p => 
+          p.name.toLowerCase().includes(rawName.toLowerCase()) || 
+          rawName.toLowerCase().includes(p.name.toLowerCase())
+        );
+      }
+
+      if (existing) {
+        const qtyInput = document.getElementById(`bulk_qty_${existing.id}`);
+        const rateInput = document.getElementById(`bulk_rate_${existing.id}`);
+        if (qtyInput) qtyInput.value = parsedQty;
+        if (rateInput && parsedRate > 0) rateInput.value = parsedRate;
+        matchedCount++;
+      } else if (rawName.length >= 2) {
+        inventory.unshift({
+          id: Date.now() + Math.random(),
+          name: rawName,
+          unit: 'Pkt',
+          costPrice: parsedRate,
+          price: Math.round(parsedRate * 1.15) || (parsedRate + 5),
+          stock: parsedQty
+        });
+        newAddedCount++;
+      }
+    }
+  });
+
+  saveState();
+  renderBulkPurchaseSheet();
+  calculateBulkSummary();
+
+  if (matchedCount > 0 || newAddedCount > 0) {
+    alert(`🎉 बिल सफलतापूर्वक पढ़ा गया!\n\n• पुराने सामान टेबल में भरे गए: ${matchedCount}\n• नए सामान इन्वेंट्री में जुड़े: ${newAddedCount}\n\nनीचे टेबल चेक करके "नया स्टॉक जोड़ें" दबाएँ।`);
+  } else {
+    alert('बिल स्कैन हुआ, लेकिन टेक्स्ट साफ नहीं था। कृपया टेबल में संख्याएँ मैन्युअल जाँच लें।');
+  }
+}
+
 // ==============================================
-// 8. PRINT & CHECKOUT
+// 9. PRINT & CHECKOUT ENGINE
 // ==============================================
 function generatePrintHTML(order, mode) {
   let rowsHtml = '';
@@ -1460,99 +1549,4 @@ window.addEventListener('DOMContentLoaded', () => {
     const pinInp = document.getElementById('inputPinField');
     if (pinInp) pinInp.focus();
   }
-// ==========================================================
-// 9. ROBUST OCR BILL SCANNER & STOCK PARSER
-// ==========================================================
-async function processBillImage(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  const statusText = document.getElementById('ocrStatusText');
-  statusText.innerHTML = '⏳ बिल स्कैन हो रहा है... (कृपया 5-8 सेकंड रुकें)';
-  statusText.style.color = 'var(--primary)';
-
-  try {
-    // Tesseract Engine (सिर्फ eng से बहुत तेज़ी से और बिना अटके काम करता है)
-    const worker = await Tesseract.createWorker('eng');
-    
-    statusText.innerText = '⏳ अक्षरों को पहचाना जा रहा है...';
-    const ret = await worker.recognize(file);
-    const rawText = ret.data.text;
-    await worker.terminate();
-
-    if (!rawText || rawText.trim().length === 0) {
-      statusText.innerText = '❌ फोटो से कोई लिखावट नहीं पढ़ी जा सकी! कृपया सीधी और साफ़ फोटो लें।';
-      statusText.style.color = 'var(--danger)';
-      return;
-    }
-
-    statusText.innerText = '✅ बिल सफलतापूर्वक पढ़ लिया गया!';
-    parseAndAutoAddBillItems(rawText);
-
-  } catch (error) {
-    console.error('OCR Error:', error);
-    statusText.innerHTML = '❌ स्कैनिंग में रुकावट आई। कृपया इंटरनेट चेक करें या दोबारा फोटो लें।';
-    statusText.style.color = 'var(--danger)';
-  }
-}
-
-// बिल के टेक्स्ट से सामान, मात्रा व रेट निकालकर स्टॉक में जोड़ना
-function parseAndAutoAddBillItems(text) {
-  const lines = text.split('\n');
-  let addedCount = 0;
-  let updatedCount = 0;
-
-  lines.forEach(line => {
-    let cleanLine = line.trim();
-    if (cleanLine.length < 3) return;
-
-    // लाइन में से सभी संख्याएँ (Numbers) निकालें
-    const numbers = cleanLine.match(/\d+(\.\d+)?/g);
-    
-    // लाइन में से अक्षरों वाला नाम निकालें (Numbers और स्पेशल कैरेक्टर हटाकर)
-    let rawName = cleanLine.replace(/[\d\.\,\:\-\_\/\*\#\@\₹\$\%\(\)]/g, '').trim();
-
-    if (numbers && numbers.length >= 1) {
-      const parsedQty = parseFloat(numbers[0]) || 1;
-      const parsedRate = numbers.length >= 2 ? (parseFloat(numbers[1]) || 0) : 0;
-
-      // 1. चेक करें कि क्या यह सामान पहले से दुकान में मौजूद है
-      let existing = null;
-      if (rawName.length >= 2) {
-        existing = inventory.find(p => 
-          p.name.toLowerCase().includes(rawName.toLowerCase()) || 
-          rawName.toLowerCase().includes(p.name.toLowerCase())
-        );
-      }
-
-      if (existing) {
-        // पुराने सामान में स्टॉक और नया रेट जोड़ें
-        existing.stock = parseFloat((existing.stock + parsedQty).toFixed(3));
-        if (parsedRate > 0) existing.costPrice = parsedRate;
-        updatedCount++;
-      } else if (rawName.length >= 2) {
-        // नया सामान इन्वेंट्री में जोड़ें
-        inventory.unshift({
-          id: Date.now() + Math.random(),
-          name: rawName,
-          unit: 'Pkt',
-          costPrice: parsedRate,
-          price: Math.round(parsedRate * 1.15) || (parsedRate + 5), // 15% मार्जिन
-          stock: parsedQty
-        });
-        addedCount++;
-      }
-    }
-  });
-
-  // बदलाव क्लाउड और स्क्रीन पर सुरक्षित करें
-  saveState();
-  renderBulkPurchaseSheet();
-  renderInventoryTable();
-
-  if (addedCount > 0 || updatedCount > 0) {
-    alert(`🎉 बिल सफलतापूर्वक जुड़ गया!\n\n• पुराने सामान का स्टॉक बढ़ा: ${updatedCount}\n• नए सामान लिस्ट हुए: ${addedCount}\n\nनीचे इन्वेंट्री या थोक खरीद में चेक कर सकते हैं।`);
-  } else {
-    alert('बिल स्कैन हुआ, लेकिन टेक्स्ट साफ नहीं था।\n\nटिप: बिल की साफ़, सीधी और अच्छी रोशनी वाली फोटो खींचें।');
-  }
-}
+});
