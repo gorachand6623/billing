@@ -28,7 +28,7 @@ try {
 }
 
 // ==============================================
-// 2. ROBUST SECURITY PIN LOGIC
+// 2. SECURITY PIN LOGIC
 // ==============================================
 let currentSecurityPin = localStorage.getItem('mandal_app_pin') || '1234';
 
@@ -36,7 +36,6 @@ function unlockApp() {
   const pinInput = document.getElementById('inputPinField');
   const enteredPin = pinInput ? pinInput.value.trim() : '';
 
-  // 1234 या सेव किए गए पिन दोनों से खुलेगा
   if (enteredPin === currentSecurityPin || enteredPin === '1234') {
     const secScreen = document.getElementById('securityScreen');
     const mainApp = document.getElementById('mainApp');
@@ -888,11 +887,10 @@ function showAllPurchaseHistory() {
   }
   renderPurchaseHistory();
 }
-// ==========================================================
-// 8. GEMINI AI OCR BILL SCANNER (FIXED FOR YOUR API KEY)
-// ==========================================================
-const GEMINI_API_KEY = "AQ.Ab8RN6LwW_J52aJ4ZGfB1rk4zmVc5WQHgViDxiDm5G2VfiuxYA";
 
+// ==========================================================
+// 8. GEMINI AI OCR BILL SCANNER (CAMERA + GALLERY)
+// ==========================================================
 async function processBillImage(event) {
   const file = event.target.files[0];
   if (!file) return;
@@ -911,7 +909,6 @@ Extract the supplier name and an array of items with name, quantity (number only
 Return ONLY a valid raw JSON object matching this structure with NO markdown or formatting:
 {"supplier": "string", "items": [{"name": "string", "qty": 0, "rate": 0}]}`;
 
-    // सही एंडपॉइंट और हेडर
     const apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent";
 
     const response = await fetch(apiUrl, {
@@ -938,7 +935,6 @@ Return ONLY a valid raw JSON object matching this structure with NO markdown or 
 
     let rawText = resJson.candidates[0].content.parts[0].text;
 
-    // JSON को साफ़ करना (Markdown बैक-टिक्स हटाना)
     rawText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
     const parsedData = JSON.parse(rawText);
 
@@ -995,6 +991,15 @@ Return ONLY a valid raw JSON object matching this structure with NO markdown or 
     statusText.innerText = `❌ त्रुटि: ${error.message}`;
     statusText.style.color = 'var(--danger)';
   }
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = error => reject(error);
+  });
 }
 
 // ==============================================
