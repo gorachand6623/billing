@@ -888,93 +888,110 @@ function showAllPurchaseHistory() {
   }
   renderPurchaseHistory();
 }
-
 // ==========================================================
 // 8. GEMINI AI OCR BILL SCANNER (CAMERA + GALLERY)
 // ==========================================================
+// ध्यान दें: Gemini API Key हमेशा "AIzaSy..." से शुरू होती है
+const GEMINI_API_KEY = "AQ.Ab8RN6LwW_J52aJ4ZGfB1rk4zmVc5WQHgViDxiDm5G2VfiuxYA";
+
 async function processBillImage(event) {
   const file = event.target.files[0];
   if (!file) return;
 
   const statusText = document.getElementById('ocrStatusText');
-  statusText.innerHTML = '⏳ AI पर्ची पढ़ रहा है... (3-5 सेकंड रुकें)';
+  statusText.innerHTML = '⏳ AI पर्ची पढ़ रहा है... (कृपया 4-5 सेकंड रुकें)';
   statusText.style.color = 'var(--primary)';
 
   try {
     const base64Data = await fileToBase64(file);
-    const imageBase64 = base64Data.split(',')[1];
+    const base64Content = base64Data.split(',')[1];
+    const mimeType = file.type || 'image/jpeg';
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+    const promptText = `Analyze this grocery supply slip/bill (printed or handwritten Hindi/English). 
+Extract the supplier name and an array of items with name, quantity (number only), and purchase rate (number only).
+Return ONLY a valid raw JSON object matching this structure with NO markdown or formatting:
+{"supplier": "string", "items": [{"name": "string", "qty": 0, "rate": 0}]}`;
+
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{
           parts: [
-            { text: "यह हाथ से लिखी या छपी हुई किराने की पर्ची है। इसमें से सप्लायर/दुकान का नाम और सभी खरीदे गए सामानों की सूची निकालो। जवाब सिर्फ और सिर्फ मान्य JSON फॉर्मेट में दो: {\"supplier\": \"मार्केट का नाम\", \"items\": [{\"name\": \"सामान का नाम\", \"qty\": संख्या, \"rate\": खरीद रेट}]}" },
-            { inline_data: { mime_type: file.type || "image/jpeg", data: imageBase64 } }
+            { text: promptText },
+            { inline_data: { mime_type: mimeType, data: base64Content } }
           ]
         }]
       })
     });
 
-    const data = await response.json();
-    const rawAiText = data.candidates[0].content.parts[0].text;
-    const cleanJson = rawAiText.replace(/```json|```/g, '').trim();
-    const parsedData = JSON.parse(cleanJson);
+    if (!response.ok) {
+      const errRes = await response.json();
+      throw new Error(errRes.error ? errRes.error.message : 'API Key Invalid or Expired');
+    }
+
+    const resJson = await response.json();
+    let rawText = resJson.candidates[0].content.parts[0].text;
+
+    // JSON को साफ़ करें
+    rawText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
+    const parsedData = JSON.parse(rawText);
 
     if (parsedData.supplier) {
-      document.getElementById('bulkSupplierName').value = parsedData.supplier;
+      const supEl = document.getElementById('bulkSupplierName');
+      if (supEl) supEl.value = parsedData.supplier;
     }
 
     let matchedCount = 0;
     let newAddedCount = 0;
 
-    parsedData.items.forEach(item => {
-      let existing = inventory.find(p => 
-        p.name.toLowerCase().includes(item.name.toLowerCase()) || 
-        item.name.toLowerCase().includes(p.name.toLowerCase())
-      );
+    if (parsedData.items && Array.isArray(parsedData.items)) {
+      parsedData.items.forEach(item => {
+        const iName = (item.name || '').trim();
+        const iQty = parseFloat(item.qty) || 0;
+        const iRate = parseFloat(item.rate) || 0;
 
-      if (existing) {
-        const qtyInput = document.getElementById(`bulk_qty_${existing.id}`);
-        const rateInput = document.getElementById(`bulk_rate_${existing.id}`);
-        if (qtyInput) qtyInput.value = item.qty;
-        if (rateInput && item.rate > 0) rateInput.value = item.rate;
-        matchedCount++;
-      } else {
-        inventory.unshift({
-          id: Date.now() + Math.random(),
-          name: item.name,
-          unit: 'Kg',
-          costPrice: item.rate || 0,
-          price: Math.round((item.rate || 10) * 1.15) || (item.rate + 5),
-          stock: 0
-        });
-        newAddedCount++;
-      }
-    });
+        if (!iName || iQty <= 0) return;
+
+        let existing = inventory.find(p => 
+          p.name.toLowerCase().includes(iName.toLowerCase()) || 
+          iName.toLowerCase().includes(p.name.toLowerCase())
+        );
+
+        if (existing) {
+          const qtyInput = document.getElementById(`bulk_qty_${existing.id}`);
+          const rateInput = document.getElementById(`bulk_rate_${existing.id}`);
+          if (qtyInput) qtyInput.value = iQty;
+          if (rateInput && iRate > 0) rateInput.value = iRate;
+          matchedCount++;
+        } else {
+          inventory.unshift({
+            id: Date.now() + Math.random(),
+            name: iName,
+            unit: 'Kg',
+            costPrice: iRate,
+            price: Math.round(iRate * 1.15) || (iRate + 5),
+            stock: 0
+          });
+          newAddedCount++;
+        }
+      });
+    }
 
     saveState();
     renderBulkPurchaseSheet();
     calculateBulkSummary();
 
     statusText.innerText = '✅ पर्ची सफलतापूर्वक पढ़ ली गई!';
-    alert(`🎉 AI ने पर्ची पढ़ ली!\n\n• पुराने सामान टेबल में भरे: ${matchedCount}\n• नए सामान इन्वेंट्री में जुड़े: ${newAddedCount}\n\nनीचे मात्रा और रेट चेक करके "💾 सभी भरे गए सामान का नया स्टॉक एक साथ जोड़ें" दबाएँ।`);
+    alert(`🎉 AI ने पर्ची पढ़ ली!\n\n• पुराने सामान टेबल में भरे: ${matchedCount}\n• नए सामान इन्वेंट्री में लिस्ट हुए: ${newAddedCount}\n\nनीचे मात्रा और रेट चेक करके "💾 सभी भरे गए सामान का नया स्टॉक एक साथ जोड़ें" दबाएँ।`);
 
   } catch (error) {
-    console.error("AI Error:", error);
-    statusText.innerText = '❌ पर्ची पढ़ने में त्रुटि। कृपया साफ़ फोटो लें।';
+    console.error("AI Scan Error:", error);
+    statusText.innerText = `❌ त्रुटि: ${error.message}`;
     statusText.style.color = 'var(--danger)';
   }
-}
-
-function fileToBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = error => reject(error);
-  });
 }
 
 // ==============================================
