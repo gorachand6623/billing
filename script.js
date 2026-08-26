@@ -1460,4 +1460,104 @@ window.addEventListener('DOMContentLoaded', () => {
     const pinInp = document.getElementById('inputPinField');
     if (pinInp) pinInp.focus();
   }
-});
+});// ==========================================================
+// 9. AI / OCR BILL SCANNER & AUTO-STOCK ENGINE
+// ==========================================================
+async function processBillImage(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const statusText = document.getElementById('ocrStatusText');
+  statusText.innerHTML = '⏳ बिल पढ़ा जा रहा है... (5-10 सेकंड रुकें)';
+
+  try {
+    const result = await Tesseract.recognize(
+      file,
+      'eng+hin',
+      {
+        logger: m => {
+          if (m.status === 'recognizing text') {
+            statusText.innerText = `⏳ स्कैनिंग: ${Math.round(m.progress * 100)}%`;
+          }
+        }
+      }
+    );
+
+    const rawText = result.data.text;
+    statusText.innerText = '✅ बिल सफलतापूर्वक स्कैन हो गया!';
+    
+    parseAndFillScannedBill(rawText);
+
+  } catch (error) {
+    console.error('OCR Error:', error);
+    statusText.innerHTML = '❌ बिल पढ़ने में त्रुटि हुई! कृपया साफ़ फोटो लें।';
+  }
+}
+
+function parseAndFillScannedBill(text) {
+  const lines = text.split('\n');
+  let matchedCount = 0;
+  let newAddedCount = 0;
+
+  lines.forEach(line => {
+    const cleanedLine = line.trim().toLowerCase();
+    if (cleanedLine.length < 3) return;
+
+    // 1. चेक करें कि क्या लाइन में कोई पुराना सामान मौजूद है
+    let foundProduct = null;
+    for (let product of inventory) {
+      const words = product.name.toLowerCase().split(' ');
+      if (words.some(w => w.length > 2 && cleanedLine.includes(w))) {
+        foundProduct = product;
+        break;
+      }
+    }
+
+    const numbers = cleanedLine.match(/\d+(\.\d+)?/g);
+
+    if (foundProduct && numbers && numbers.length >= 1) {
+      // पुराने सामान का स्टॉक और रेट टेबल में भरना
+      const qtyInput = document.getElementById(`bulk_qty_${foundProduct.id}`);
+      const rateInput = document.getElementById(`bulk_rate_${foundProduct.id}`);
+
+      if (qtyInput && (!qtyInput.value || qtyInput.value == '0')) {
+        qtyInput.value = parseFloat(numbers[0]);
+        if (numbers.length >= 2 && rateInput) {
+          rateInput.value = parseFloat(numbers[1]);
+        }
+        matchedCount++;
+      }
+    } else if (!foundProduct && numbers && numbers.length >= 2) {
+      // अगर बिल्कुल नया सामान मिला तो उसे इन्वेंट्री में जोड़ना
+      const rawItemName = line.replace(/[\d\.\,\:\-\_\/\*]/g, '').trim();
+      if (rawItemName.length > 2) {
+        const parsedQty = parseFloat(numbers[0]) || 0;
+        const parsedRate = parseFloat(numbers[1]) || 0;
+        
+        inventory.unshift({
+          id: Date.now() + Math.random(),
+          name: rawItemName,
+          unit: 'Pkt',
+          costPrice: parsedRate,
+          price: Math.round(parsedRate * 1.15) || parsedRate, // 15% मार्जिन
+          stock: parsedQty
+        });
+        newAddedCount++;
+      }
+    }
+  });
+
+  if (newAddedCount > 0) {
+    saveState();
+    renderBulkPurchaseSheet();
+  }
+
+  calculateBulkSummary();
+
+  if (matchedCount > 0 || newAddedCount > 0) {
+    alert(`🎉 बधाई! बिल से ${matchedCount} पुराने सामान और ${newAddedCount} नए सामान पहचान लिए गए हैं। नीचे टेबल में चेक करके "नया स्टॉक जोड़ें" दबाएँ।`);
+  } else {
+    alert('बिल स्कैन हो गया, लेकिन सामान साफ नहीं पढ़े जा सके। कृपया टेबल में मैन्युअल मात्रा भर लें।');
+  }
+}
+
