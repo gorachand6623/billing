@@ -1,4 +1,4 @@
-﻿// ==============================================
+// ==============================================
 // 1. FIREBASE CONFIG & INITIALIZATION
 // ==============================================
 const firebaseConfig = {
@@ -90,6 +90,7 @@ let discountValue = 0;
 let qrTimerInterval = null;
 let qrSecondsLeft = 3600; 
 let currentSessionRef = '';
+let selectedKhataCustomer = null;
 
 // ==============================================
 // 4. REALTIME SYNC
@@ -182,6 +183,15 @@ function getTodayKey() {
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, '0');
   const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getYesterdayKey() {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
 
@@ -614,7 +624,6 @@ function saveAllExcelInventory() {
         p.stock = newStock;
         changeCount++;
 
-        // Live Bill sync
         const bItem = currentBill.find(b => b.id === p.id);
         if (bItem) {
           bItem.price = p.price;
@@ -635,7 +644,7 @@ function filterInventoryTable() {
 }
 
 // ==========================================================
-// 7. BULK STOCK ENTRY SHEET
+// 7. INDIVIDUAL ITEM BULK PURCHASE & HISTORY ENGINE
 // ==========================================================
 function renderBulkPurchaseSheet(products = inventory) {
   const tbody = document.getElementById('bulkPurchaseSheetBody');
@@ -725,6 +734,7 @@ function saveAllBulkSheetStock() {
         p.stock = parseFloat((p.stock + addedQty).toFixed(3));
         if (!isNaN(newRate) && newRate >= 0) p.costPrice = newRate;
 
+        // प्रत्येक सामान की अलग 1-बाय-1 लाइन एंट्री
         purchaseHistory.unshift({
           id: Date.now() + Math.random(),
           dateKey: getTodayKey(),
@@ -747,9 +757,47 @@ function saveAllBulkSheetStock() {
     return;
   }
 
-  alert(`सफलतापूर्वक ${updatedCount} सामानों का नया स्टॉक जुड़ गया!`);
+  alert(`सफलतापूर्वक ${updatedCount} सामानों का नया स्टॉक अलग-अलग जुड़ गया!`);
   resetBulkSheetInputs();
   saveState();
+}
+
+function renderPurchaseHistory() {
+  const filterInput = document.getElementById('purchaseFilterDate');
+  const selectedDate = filterInput ? filterInput.value : '';
+  const isAllMode = !filterInput || filterInput.dataset.mode === 'all' || !selectedDate;
+
+  const filteredPurchases = isAllMode 
+    ? purchaseHistory 
+    : purchaseHistory.filter(p => p.dateKey === selectedDate);
+
+  const tbody = document.getElementById('purchaseHistoryBody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  if (filteredPurchases.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8" style="padding:15px; color:var(--text-muted);">कोई खरीद रिकॉर्ड उपलब्ध नहीं है।</td></tr>`;
+    return;
+  }
+
+  filteredPurchases.forEach(p => {
+    const name = p.productName || (p.items ? p.items.map(i => i.name).join(', ') : 'सामान');
+    const qtyStr = p.qty !== undefined ? `${p.qty} ${p.unit || ''}` : `${p.itemCount || 1} आइटम`;
+    const rateStr = p.rate !== undefined ? `₹${p.rate}` : '-';
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="color:var(--text-muted); font-weight:600;">${p.dateStr}</td>
+      <td style="text-align:left; font-weight:700;">${name}</td>
+      <td>${p.supplier || 'थोक मंडी'}</td>
+      <td style="font-weight:800; color:var(--primary);">${qtyStr}</td>
+      <td>${rateStr}</td>
+      <td style="font-weight:800; color:var(--accent-orange);">₹${(p.totalCost || 0).toFixed(2)}</td>
+      <td><button class="action-btn edit" onclick="editPurchaseRecord(${p.id})">✎ सुधार करें</button></td>
+      <td><button class="action-btn del" onclick="deleteSinglePurchaseRecord(${p.id})">×</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
 }
 
 function editPurchaseRecord(purchaseId) {
@@ -784,27 +832,45 @@ function editPurchaseRecord(purchaseId) {
   alert('खरीददारी हिसाब सुधर गया!');
 }
 
-function renderPurchaseHistory() {
-  const tbody = document.getElementById('purchaseHistoryBody');
-  if (!tbody) return;
-  tbody.innerHTML = '';
-  if (purchaseHistory.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" style="padding:15px; color:var(--text-muted);">कोई खरीद रिकॉर्ड उपलब्ध नहीं है।</td></tr>`;
-    return;
+function deleteSinglePurchaseRecord(purchaseId) {
+  if (confirm('क्या आप सचमुच इस खरीद रिकॉर्ड को हटाना चाहते हैं?')) {
+    const p = purchaseHistory.find(item => item.id === purchaseId);
+    if (p) {
+      const prod = inventory.find(i => i.name === p.productName);
+      if (prod && p.qty) {
+        prod.stock = parseFloat(Math.max(0, prod.stock - p.qty).toFixed(3));
+      }
+    }
+    purchaseHistory = purchaseHistory.filter(item => item.id !== purchaseId);
+    saveState();
   }
-  purchaseHistory.forEach(p => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td style="color:var(--text-muted); font-weight:600;">${p.dateStr}</td>
-      <td style="text-align:left; font-weight:700;">${p.productName}</td>
-      <td>${p.supplier}</td>
-      <td style="font-weight:800; color:var(--primary);">${p.qty} ${p.unit}</td>
-      <td>₹${p.rate}</td>
-      <td style="font-weight:800; color:var(--accent-orange);">₹${(p.totalCost || 0).toFixed(2)}</td>
-      <td><button class="action-btn edit" onclick="editPurchaseRecord(${p.id})">✎ सुधार करें</button></td>
-    `;
-    tbody.appendChild(tr);
-  });
+}
+
+function setTodayPurchaseFilter() {
+  const filterInput = document.getElementById('purchaseFilterDate');
+  if (filterInput) {
+    filterInput.dataset.mode = 'date';
+    filterInput.value = getTodayKey();
+  }
+  renderPurchaseHistory();
+}
+
+function setYesterdayPurchaseFilter() {
+  const filterInput = document.getElementById('purchaseFilterDate');
+  if (filterInput) {
+    filterInput.dataset.mode = 'date';
+    filterInput.value = getYesterdayKey();
+  }
+  renderPurchaseHistory();
+}
+
+function showAllPurchaseHistory() {
+  const filterInput = document.getElementById('purchaseFilterDate');
+  if (filterInput) {
+    filterInput.dataset.mode = 'all';
+    filterInput.value = '';
+  }
+  renderPurchaseHistory();
 }
 
 // ==============================================
@@ -1167,6 +1233,12 @@ function renderKhataTable(list = khataLedger) {
   const tbody = document.getElementById('khataTableBody');
   if (!tbody) return;
   tbody.innerHTML = '';
+  
+  if (list.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8" style="padding:15px; color:var(--text-muted);">कोई उधारी खाता उपलब्ध नहीं है।</td></tr>`;
+    return;
+  }
+
   list.forEach((k, idx) => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -1174,14 +1246,59 @@ function renderKhataTable(list = khataLedger) {
       <td style="text-align:left; font-weight:700;">${k.name}</td>
       <td>${k.phone || '-'}</td>
       <td style="font-weight:800; color:var(--danger);">₹${(k.balance || 0).toFixed(2)}</td>
-      <td>${k.lastUpdated}</td>
+      <td>
+        <button class="action-btn edit" onclick="openCustomerQRModal(${k.id})">🔍 परमानेंट QR</button>
+      </td>
       <td>
         ${k.phone ? `<button class="action-btn whatsapp" onclick="sendWhatsAppReminder('${k.name}', '${k.phone}', ${k.balance})">📲 तकादा</button>` : '-'}
+      </td>
+      <td>
+        <button class="action-btn stock" onclick="quickClearKhata(${k.id})">✅ पूरा चुकता</button>
       </td>
       <td><button class="action-btn del" onclick="deleteKhata(${k.id})">हटाएं</button></td>
     `;
     tbody.appendChild(tr);
   });
+}
+
+function quickClearKhata(id) {
+  const customer = khataLedger.find(k => k.id === id);
+  if (!customer) return;
+
+  if (confirm(`क्या "${customer.name}" ने पूरा ₹${customer.balance} ऑनलाइन/नकद चुका दिया है?`)) {
+    customer.balance = 0;
+    customer.lastUpdated = getTodayKey();
+    saveState();
+    alert(`"${customer.name}" का पूरा खाता चुकता हो गया! बकाया: ₹0`);
+  }
+}
+
+function openCustomerQRModal(id) {
+  const customer = khataLedger.find(k => k.id === id);
+  if (!customer) return;
+
+  selectedKhataCustomer = customer;
+  document.getElementById('qrModalCustName').innerText = customer.name;
+  document.getElementById('qrModalCustBal').innerText = `कुल बकाया: ₹${(customer.balance || 0).toFixed(2)}`;
+
+  const upiUrl = `upi://pay?pa=${encodeURIComponent(upiID)}&pn=${encodeURIComponent('Best To Best Kirana')}&am=${customer.balance.toFixed(2)}&cu=INR&tn=${encodeURIComponent('Udhar Payment - ' + customer.name)}`;
+  
+  drawQRCodeToElement('customerModalQRCodeContainer', upiUrl, 160, 160);
+  document.getElementById('customerQRModal').classList.add('active');
+}
+
+function closeCustomerQRModal() {
+  document.getElementById('customerQRModal').classList.remove('active');
+}
+
+function shareCustomerQROnWhatsApp() {
+  if (!selectedKhataCustomer || !selectedKhataCustomer.phone) {
+    alert('ग्राहक का मोबाइल नंबर दर्ज नहीं है!');
+    return;
+  }
+  const payUrl = `upi://pay?pa=${encodeURIComponent(upiID)}&pn=${encodeURIComponent('Best To Best Kirana')}&am=${selectedKhataCustomer.balance.toFixed(2)}&cu=INR&tn=${encodeURIComponent('Udhar - ' + selectedKhataCustomer.name)}`;
+  const msg = encodeURIComponent(`नमस्ते ${selectedKhataCustomer.name} जी, बेस्ट टू बेस्ट किराना स्टोर से आपका कुल बकाया ₹${selectedKhataCustomer.balance.toFixed(2)} है।\n\nइस लिंक पर क्लिक करके सीधे UPI से भुगतान करें:\n${payUrl}\n\nधन्यवाद!`);
+  window.open(`https://wa.me/91${selectedKhataCustomer.phone}?text=${msg}`, '_blank');
 }
 
 function sendWhatsAppReminder(name, phone, amount) {
