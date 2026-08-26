@@ -838,8 +838,10 @@ function showAllPurchaseHistory() {
 }
 
 // ==========================================================
-// 7. GEMINI AI OCR BILL SCANNER (FIXED AUTH HEADERS)
+// 8. GEMINI AI OCR BILL SCANNER (FIXED BEARER AUTH)
 // ==========================================================
+const GEMINI_API_KEY = "AQ.Ab8RN6Isba-pyit9HJI3XSwU4Iv6yRo2diE419r3tWSh0JtJqQ";
+
 async function processBillImage(event) {
   const file = event.target.files[0];
   if (!file) return;
@@ -858,12 +860,15 @@ Extract the supplier name and an array of items with name, quantity (number only
 Return ONLY a valid raw JSON object matching this structure with NO markdown or formatting:
 {"supplier": "string", "items": [{"name": "string", "qty": 0, "rate": 0}]}`;
 
+    // सही एंडपॉइंट
     const apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
 
+    // Bearer Token और x-goog-api-key दोनों सपोर्ट
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${GEMINI_API_KEY}`,
         'x-goog-api-key': GEMINI_API_KEY
       },
       body: JSON.stringify({
@@ -941,15 +946,21 @@ Return ONLY a valid raw JSON object matching this structure with NO markdown or 
   }
 }
 
-function fileToBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = error => reject(error);
-  });
+    saveState();
+    renderBulkPurchaseSheet();
+    calculateBulkSummary();
+
+    statusText.innerText = '✅ पर्ची सफलतापूर्वक पढ़ ली गई!';
+    alert(`🎉 AI ने पर्ची पढ़ ली!\n\n• पुराने सामान टेबल में भरे: ${matchedCount}\n• नए सामान लिस्ट हुए: ${newAddedCount}\n\nनीचे मात्रा और रेट चेक करके "💾 सभी भरे गए सामान का नया स्टॉक एक साथ जोड़ें" दबाएँ।`);
+
+  } catch (error) {
+    console.error("AI Scan Error:", error);
+    statusText.innerText = `❌ त्रुटि: ${error.message}`;
+    statusText.style.color = 'var(--danger)';
+  }
 }
 
+        
 // ==============================================
 // 8. PRINT & CHECKOUT ENGINE
 // ==============================================
