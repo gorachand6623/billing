@@ -12,28 +12,14 @@
   <!-- QR Code Engine -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
-  <!-- AI / OCR Engine for Bill Scanning -->
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
-
   <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
-  <!-- 1. SECURITY PIN SCREEN -->
-  <div id="securityScreen">
-    <div class="pin-box">
-      <div style="font-size:36px; margin-bottom:8px;">🔒</div>
-      <h2>बेस्ट टू बेस्ट किराना स्टोर</h2>
-      <p>सिस्टम खोलने के लिए 4-अंकों का पिन दर्ज करें</p>
-      <input type="password" id="inputPinField" class="pin-input" maxlength="4" placeholder="••••" autofocus onkeyup="if(event.key==='Enter') unlockApp()">
-      <button class="btn btn-primary" style="width:100%; padding:14px;" onclick="unlockApp()">सत्यापित करें व खोलें</button>
-    </div>
-  </div>
-
-  <!-- 2. MAIN APPLICATION -->
-  <div id="mainApp">
+  <!-- MAIN APPLICATION (DIRECT OPEN) -->
+  <div id="mainApp" style="display: block;">
 
     <!-- Header -->
     <header class="header-bar">
@@ -50,8 +36,6 @@
           <button class="btn-backup" onclick="exportBackup()">📥 बैकअप लें</button>
           <button class="btn-backup" onclick="document.getElementById('importFile').click()">📤 लोड करें</button>
           <button class="btn-backup" onclick="setUPIPrompt()">⚙️ UPI ID बदलें</button>
-          <button class="btn-backup" onclick="changePinPrompt()">🔑 पिन बदलें</button>
-          <button class="btn-backup" style="background:rgba(225,29,72,0.3); border-color:#fecdd3;" onclick="lockApp()">🔒 लॉक करें</button>
           <input type="file" id="importFile" style="display:none" accept=".json" onchange="importBackup(event)">
         </div>
       </div>
@@ -309,18 +293,18 @@
       </div>
     </div>
 
-    <!-- TAB 5: OCR BILL SCANNER + BULK STOCK ENTRY -->
+    <!-- TAB 5: AI OCR BILL SCANNER + BULK STOCK ENTRY -->
     <div id="purchase-tab" class="tab-content">
       
-      <!-- 📸 CAMERA + GALLERY OCR BILL SCANNER CARD -->
+      <!-- 📸 CAMERA + GALLERY AI OCR BILL SCANNER CARD -->
       <div class="card" style="margin-bottom: 16px; background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%); border: 2px dashed #a7f3d0;">
         <div class="card-title" style="border-bottom: 1px solid #a7f3d0;">
-          <span style="color: #065f46;">📸 मंडी बिल स्कैन (कैमरा या गैलरी से चुनें)</span>
-          <span style="font-size: 11px; background: #dcfce7; color: #166534; padding: 3px 8px; border-radius: 12px; font-weight: 700;">AI OCR Powered</span>
+          <span style="color: #065f46;">📸 मंडी पर्ची स्कैन (कैमरा या गैलरी से चुनें)</span>
+          <span style="font-size: 11px; background: #dcfce7; color: #166534; padding: 3px 8px; border-radius: 12px; font-weight: 700;">Google Gemini AI</span>
         </div>
         
         <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
-          सीधे कैमरे से नई फोटो खींचें या गैलरी में सेव बिल की फोटो चुनें। AI अपने आप सामान, मात्रा और खरीद रेट पहचान कर नीचे भर देगा।
+          हाथ से लिखी या छपी हुई मंडी पर्ची का फोटो खींचें या गैलरी से चुनें। AI अपने आप सामान, मात्रा और खरीद रेट पहचान कर नीचे भर देगा।
         </p>
 
         <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
