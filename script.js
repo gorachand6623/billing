@@ -889,9 +889,8 @@ function showAllPurchaseHistory() {
   renderPurchaseHistory();
 }
 // ==========================================================
-// 8. GEMINI AI OCR BILL SCANNER (CAMERA + GALLERY)
+// 8. GEMINI AI OCR BILL SCANNER (FIXED FOR YOUR API KEY)
 // ==========================================================
-// ध्यान दें: Gemini API Key हमेशा "AIzaSy..." से शुरू होती है
 const GEMINI_API_KEY = "AQ.Ab8RN6LwW_J52aJ4ZGfB1rk4zmVc5WQHgViDxiDm5G2VfiuxYA";
 
 async function processBillImage(event) {
@@ -912,11 +911,15 @@ Extract the supplier name and an array of items with name, quantity (number only
 Return ONLY a valid raw JSON object matching this structure with NO markdown or formatting:
 {"supplier": "string", "items": [{"name": "string", "qty": 0, "rate": 0}]}`;
 
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+    // सही एंडपॉइंट और हेडर
+    const apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent";
 
     const response = await fetch(apiUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-goog-api-key': GEMINI_API_KEY
+      },
       body: JSON.stringify({
         contents: [{
           parts: [
@@ -927,15 +930,15 @@ Return ONLY a valid raw JSON object matching this structure with NO markdown or 
       })
     });
 
+    const resJson = await response.json();
+
     if (!response.ok) {
-      const errRes = await response.json();
-      throw new Error(errRes.error ? errRes.error.message : 'API Key Invalid or Expired');
+      throw new Error(resJson.error ? resJson.error.message : 'API Error');
     }
 
-    const resJson = await response.json();
     let rawText = resJson.candidates[0].content.parts[0].text;
 
-    // JSON को साफ़ करें
+    // JSON को साफ़ करना (Markdown बैक-टिक्स हटाना)
     rawText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
     const parsedData = JSON.parse(rawText);
 
@@ -985,7 +988,7 @@ Return ONLY a valid raw JSON object matching this structure with NO markdown or 
     calculateBulkSummary();
 
     statusText.innerText = '✅ पर्ची सफलतापूर्वक पढ़ ली गई!';
-    alert(`🎉 AI ने पर्ची पढ़ ली!\n\n• पुराने सामान टेबल में भरे: ${matchedCount}\n• नए सामान इन्वेंट्री में लिस्ट हुए: ${newAddedCount}\n\nनीचे मात्रा और रेट चेक करके "💾 सभी भरे गए सामान का नया स्टॉक एक साथ जोड़ें" दबाएँ।`);
+    alert(`🎉 AI ने पर्ची पढ़ ली!\n\n• पुराने सामान टेबल में भरे: ${matchedCount}\n• नए सामान लिस्ट हुए: ${newAddedCount}\n\nनीचे मात्रा और रेट चेक करके "💾 सभी भरे गए सामान का नया स्टॉक एक साथ जोड़ें" दबाएँ।`);
 
   } catch (error) {
     console.error("AI Scan Error:", error);
