@@ -1460,104 +1460,99 @@ window.addEventListener('DOMContentLoaded', () => {
     const pinInp = document.getElementById('inputPinField');
     if (pinInp) pinInp.focus();
   }
-});// ==========================================================
-// 9. AI / OCR BILL SCANNER & AUTO-STOCK ENGINE
+// ==========================================================
+// 9. ROBUST OCR BILL SCANNER & STOCK PARSER
 // ==========================================================
 async function processBillImage(event) {
   const file = event.target.files[0];
   if (!file) return;
 
   const statusText = document.getElementById('ocrStatusText');
-  statusText.innerHTML = '⏳ बिल पढ़ा जा रहा है... (5-10 सेकंड रुकें)';
+  statusText.innerHTML = '⏳ बिल स्कैन हो रहा है... (कृपया 5-8 सेकंड रुकें)';
+  statusText.style.color = 'var(--primary)';
 
   try {
-    const result = await Tesseract.recognize(
-      file,
-      'eng+hin',
-      {
-        logger: m => {
-          if (m.status === 'recognizing text') {
-            statusText.innerText = `⏳ स्कैनिंग: ${Math.round(m.progress * 100)}%`;
-          }
-        }
-      }
-    );
-
-    const rawText = result.data.text;
-    statusText.innerText = '✅ बिल सफलतापूर्वक स्कैन हो गया!';
+    // Tesseract Engine (सिर्फ eng से बहुत तेज़ी से और बिना अटके काम करता है)
+    const worker = await Tesseract.createWorker('eng');
     
-    parseAndFillScannedBill(rawText);
+    statusText.innerText = '⏳ अक्षरों को पहचाना जा रहा है...';
+    const ret = await worker.recognize(file);
+    const rawText = ret.data.text;
+    await worker.terminate();
+
+    if (!rawText || rawText.trim().length === 0) {
+      statusText.innerText = '❌ फोटो से कोई लिखावट नहीं पढ़ी जा सकी! कृपया सीधी और साफ़ फोटो लें।';
+      statusText.style.color = 'var(--danger)';
+      return;
+    }
+
+    statusText.innerText = '✅ बिल सफलतापूर्वक पढ़ लिया गया!';
+    parseAndAutoAddBillItems(rawText);
 
   } catch (error) {
     console.error('OCR Error:', error);
-    statusText.innerHTML = '❌ बिल पढ़ने में त्रुटि हुई! कृपया साफ़ फोटो लें।';
+    statusText.innerHTML = '❌ स्कैनिंग में रुकावट आई। कृपया इंटरनेट चेक करें या दोबारा फोटो लें।';
+    statusText.style.color = 'var(--danger)';
   }
 }
 
-function parseAndFillScannedBill(text) {
+// बिल के टेक्स्ट से सामान, मात्रा व रेट निकालकर स्टॉक में जोड़ना
+function parseAndAutoAddBillItems(text) {
   const lines = text.split('\n');
-  let matchedCount = 0;
-  let newAddedCount = 0;
+  let addedCount = 0;
+  let updatedCount = 0;
 
   lines.forEach(line => {
-    const cleanedLine = line.trim().toLowerCase();
-    if (cleanedLine.length < 3) return;
+    let cleanLine = line.trim();
+    if (cleanLine.length < 3) return;
 
-    // 1. चेक करें कि क्या लाइन में कोई पुराना सामान मौजूद है
-    let foundProduct = null;
-    for (let product of inventory) {
-      const words = product.name.toLowerCase().split(' ');
-      if (words.some(w => w.length > 2 && cleanedLine.includes(w))) {
-        foundProduct = product;
-        break;
+    // लाइन में से सभी संख्याएँ (Numbers) निकालें
+    const numbers = cleanLine.match(/\d+(\.\d+)?/g);
+    
+    // लाइन में से अक्षरों वाला नाम निकालें (Numbers और स्पेशल कैरेक्टर हटाकर)
+    let rawName = cleanLine.replace(/[\d\.\,\:\-\_\/\*\#\@\₹\$\%\(\)]/g, '').trim();
+
+    if (numbers && numbers.length >= 1) {
+      const parsedQty = parseFloat(numbers[0]) || 1;
+      const parsedRate = numbers.length >= 2 ? (parseFloat(numbers[1]) || 0) : 0;
+
+      // 1. चेक करें कि क्या यह सामान पहले से दुकान में मौजूद है
+      let existing = null;
+      if (rawName.length >= 2) {
+        existing = inventory.find(p => 
+          p.name.toLowerCase().includes(rawName.toLowerCase()) || 
+          rawName.toLowerCase().includes(p.name.toLowerCase())
+        );
       }
-    }
 
-    const numbers = cleanedLine.match(/\d+(\.\d+)?/g);
-
-    if (foundProduct && numbers && numbers.length >= 1) {
-      // पुराने सामान का स्टॉक और रेट टेबल में भरना
-      const qtyInput = document.getElementById(`bulk_qty_${foundProduct.id}`);
-      const rateInput = document.getElementById(`bulk_rate_${foundProduct.id}`);
-
-      if (qtyInput && (!qtyInput.value || qtyInput.value == '0')) {
-        qtyInput.value = parseFloat(numbers[0]);
-        if (numbers.length >= 2 && rateInput) {
-          rateInput.value = parseFloat(numbers[1]);
-        }
-        matchedCount++;
-      }
-    } else if (!foundProduct && numbers && numbers.length >= 2) {
-      // अगर बिल्कुल नया सामान मिला तो उसे इन्वेंट्री में जोड़ना
-      const rawItemName = line.replace(/[\d\.\,\:\-\_\/\*]/g, '').trim();
-      if (rawItemName.length > 2) {
-        const parsedQty = parseFloat(numbers[0]) || 0;
-        const parsedRate = parseFloat(numbers[1]) || 0;
-        
+      if (existing) {
+        // पुराने सामान में स्टॉक और नया रेट जोड़ें
+        existing.stock = parseFloat((existing.stock + parsedQty).toFixed(3));
+        if (parsedRate > 0) existing.costPrice = parsedRate;
+        updatedCount++;
+      } else if (rawName.length >= 2) {
+        // नया सामान इन्वेंट्री में जोड़ें
         inventory.unshift({
           id: Date.now() + Math.random(),
-          name: rawItemName,
+          name: rawName,
           unit: 'Pkt',
           costPrice: parsedRate,
-          price: Math.round(parsedRate * 1.15) || parsedRate, // 15% मार्जिन
+          price: Math.round(parsedRate * 1.15) || (parsedRate + 5), // 15% मार्जिन
           stock: parsedQty
         });
-        newAddedCount++;
+        addedCount++;
       }
     }
   });
 
-  if (newAddedCount > 0) {
-    saveState();
-    renderBulkPurchaseSheet();
-  }
+  // बदलाव क्लाउड और स्क्रीन पर सुरक्षित करें
+  saveState();
+  renderBulkPurchaseSheet();
+  renderInventoryTable();
 
-  calculateBulkSummary();
-
-  if (matchedCount > 0 || newAddedCount > 0) {
-    alert(`🎉 बधाई! बिल से ${matchedCount} पुराने सामान और ${newAddedCount} नए सामान पहचान लिए गए हैं। नीचे टेबल में चेक करके "नया स्टॉक जोड़ें" दबाएँ।`);
+  if (addedCount > 0 || updatedCount > 0) {
+    alert(`🎉 बिल सफलतापूर्वक जुड़ गया!\n\n• पुराने सामान का स्टॉक बढ़ा: ${updatedCount}\n• नए सामान लिस्ट हुए: ${addedCount}\n\nनीचे इन्वेंट्री या थोक खरीद में चेक कर सकते हैं।`);
   } else {
-    alert('बिल स्कैन हो गया, लेकिन सामान साफ नहीं पढ़े जा सके। कृपया टेबल में मैन्युअल मात्रा भर लें।');
+    alert('बिल स्कैन हुआ, लेकिन टेक्स्ट साफ नहीं था।\n\nटिप: बिल की साफ़, सीधी और अच्छी रोशनी वाली फोटो खींचें।');
   }
 }
-
