@@ -223,7 +223,7 @@ body {
   margin-top: 3px; 
 }
 
-/* Navigation Tabs with Custom Scrollbar */
+/* Tabs Navigation */
 .tab-navigation {
   display: flex;
   gap: 8px;
