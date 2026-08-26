@@ -4,7 +4,7 @@
 const GEMINI_API_KEY = "AQ.Ab8RN6LwW_J52aJ4ZGfB1rk4zmVc5WQHgViDxiDm5G2VfiuxYA";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyD775jRZe9ApSzxmo6u2ZVkeOz-Hbz_m5A",
+  apiKey: "AQ.Ab8RN6Isba-pyit9HJI3XSwU4Iv6yRo2diE419r3tWSh0JtJqQHbz_m5A",
   authDomain: "best-to-best-kirana.firebaseapp.com",
   projectId: "best-to-best-kirana",
   storageBucket: "best-to-best-kirana.firebasestorage.app",
