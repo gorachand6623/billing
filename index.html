@@ -12,6 +12,9 @@
   <!-- QR Code Engine -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
+  <!-- AI / OCR Engine for Bill Scanning -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+
   <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -152,7 +155,7 @@
             </div>
           </div>
 
-          <!-- 1-Hour Dynamic UPI QR Box -->
+          <!-- Dynamic UPI QR Box -->
           <div class="qr-pay-panel" id="qrPanelBox">
             <div id="screenQRCodeContainer" class="qr-canvas-holder"></div>
             <div>
@@ -292,7 +295,6 @@
         </div>
       </div>
 
-      <!-- Customer QR Modal -->
       <div class="modal-overlay" id="customerQRModal">
         <div class="modal-card" style="text-align: center;">
           <h3 style="font-size:16px; font-weight:800; margin-bottom:4px;" id="qrModalCustName">ग्राहक QR</h3>
@@ -307,8 +309,27 @@
       </div>
     </div>
 
-    <!-- TAB 5: BULK STOCK ENTRY & INDIVIDUAL ITEM HISTORY -->
+    <!-- TAB 5: OCR BILL SCANNER + BULK STOCK ENTRY -->
     <div id="purchase-tab" class="tab-content">
+      
+      <!-- 📸 AI / OCR BILL SCANNER CARD -->
+      <div class="card" style="margin-bottom: 16px; background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%); border: 2px dashed #a7f3d0;">
+        <div class="card-title" style="border-bottom: 1px solid #a7f3d0;">
+          <span style="color: #065f46;">📸 मंडी बिल स्कैन / फोटो अपलोड (Auto-Stock Entry)</span>
+          <span style="font-size: 11px; background: #dcfce7; color: #166534; padding: 3px 8px; border-radius: 12px; font-weight: 700;">AI OCR Powered</span>
+        </div>
+        
+        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
+          मंडी या थोक पर्ची का फोटो खींचकर अपलोड करें। सिस्टम अपने आप सामान, मात्रा और खरीद रेट पहचान कर नीचे भर देगा। (नया सामान अपने आप लिस्ट हो जाएगा और पुराना सामान का स्टॉक बढ़ जाएगा)।
+        </p>
+
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+          <input type="file" id="billImageInput" accept="image/*" capture="environment" style="display:none;" onchange="processBillImage(event)">
+          <button class="btn btn-primary" style="background:#059669;" onclick="document.getElementById('billImageInput').click()">📷 कैमरे से फोटो खींचें / अपलोड करें</button>
+          <span id="ocrStatusText" style="font-size: 12.5px; font-weight: 700; color: var(--primary);"></span>
+        </div>
+      </div>
+
       <div class="card" style="margin-bottom: 16px;">
         <div class="card-title">
           <span>📦 थोक माल खरीद (सभी सामानों का स्टॉक एक साथ भरें)</span>
@@ -345,7 +366,6 @@
         </div>
       </div>
 
-      <!-- Individual Item Purchase History -->
       <div class="card">
         <div class="card-title">
           <span>खरीददारी हिसाब (Purchase History - सुधार योग्य)</span>
