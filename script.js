@@ -1,10 +1,10 @@
 // ==============================================
 // 1. GEMINI AI & FIREBASE CONFIG
 // ==============================================
-const GEMINI_API_KEY = "AQ.Ab8RN6LwW_J52aJ4ZGfB1rk4zmVc5WQHgViDxiDm5G2VfiuxYA";
+const GEMINI_API_KEY = "AQ.Ab8RN6Isba-pyit9HJI3XSwU4Iv6yRo2diE419r3tWSh0JtJqQ";
 
 const firebaseConfig = {
-  apiKey: "AQ.Ab8RN6Isba-pyit9HJI3XSwU4Iv6yRo2diE419r3tWSh0JtJqQHbz_m5A",
+  apiKey: "AIzaSyD775jRZe9ApSzxmo6u2ZVkeOz-Hbz_m5A",
   authDomain: "best-to-best-kirana.firebaseapp.com",
   projectId: "best-to-best-kirana",
   storageBucket: "best-to-best-kirana.firebasestorage.app",
@@ -838,14 +838,14 @@ function showAllPurchaseHistory() {
 }
 
 // ==========================================================
-// 7. GEMINI AI OCR BILL SCANNER (CAMERA + GALLERY)
+// 7. GEMINI AI OCR BILL SCANNER (FIXED AUTH HEADERS)
 // ==========================================================
 async function processBillImage(event) {
   const file = event.target.files[0];
   if (!file) return;
 
   const statusText = document.getElementById('ocrStatusText');
-  statusText.innerHTML = '⏳ AI पर्ची पढ़ रहा है... (कृपया 4-5 सेकंड रुकें)';
+  statusText.innerHTML = '⏳ AI पर्ची पढ़ रहा है... (कृपया 3-5 सेकंड रुकें)';
   statusText.style.color = 'var(--primary)';
 
   try {
@@ -858,7 +858,7 @@ Extract the supplier name and an array of items with name, quantity (number only
 Return ONLY a valid raw JSON object matching this structure with NO markdown or formatting:
 {"supplier": "string", "items": [{"name": "string", "qty": 0, "rate": 0}]}`;
 
-    const apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent";
+    const apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
 
     const response = await fetch(apiUrl, {
       method: 'POST',
