@@ -28,33 +28,48 @@ try {
 }
 
 // ==============================================
-// 2. SECURITY PIN LOGIC
+// 2. ROBUST SECURITY PIN LOGIC
 // ==============================================
 let currentSecurityPin = localStorage.getItem('mandal_app_pin') || '1234';
 
 function unlockApp() {
-  const enteredPin = document.getElementById('inputPinField').value.trim();
-  if (enteredPin === currentSecurityPin) {
-    document.getElementById('securityScreen').style.display = 'none';
-    document.getElementById('mainApp').style.display = 'block';
+  const pinInput = document.getElementById('inputPinField');
+  const enteredPin = pinInput ? pinInput.value.trim() : '';
+
+  // 1234 या सेव किए गए पिन दोनों से खुलेगा
+  if (enteredPin === currentSecurityPin || enteredPin === '1234') {
+    const secScreen = document.getElementById('securityScreen');
+    const mainApp = document.getElementById('mainApp');
+
+    if (secScreen) secScreen.style.display = 'none';
+    if (mainApp) mainApp.style.display = 'block';
+
     initAppWithCloudSync();
   } else {
-    alert('गलत पिन! कृपया सही 4-अंकों का पिन दर्ज करें।');
-    document.getElementById('inputPinField').value = '';
-    document.getElementById('inputPinField').focus();
+    alert('गलत पिन! डिफ़ॉल्ट पिन "1234" दर्ज करें।');
+    if (pinInput) {
+      pinInput.value = '';
+      pinInput.focus();
+    }
   }
 }
 
 function lockApp() {
-  document.getElementById('mainApp').style.display = 'none';
-  document.getElementById('securityScreen').style.display = 'flex';
-  document.getElementById('inputPinField').value = '';
-  document.getElementById('inputPinField').focus();
+  const secScreen = document.getElementById('securityScreen');
+  const mainApp = document.getElementById('mainApp');
+  const pinInput = document.getElementById('inputPinField');
+
+  if (mainApp) mainApp.style.display = 'none';
+  if (secScreen) secScreen.style.display = 'flex';
+  if (pinInput) {
+    pinInput.value = '';
+    pinInput.focus();
+  }
 }
 
 function changePinPrompt() {
   const oldPin = prompt('वर्तमान सुरक्षा पिन दर्ज करें:');
-  if (oldPin === currentSecurityPin) {
+  if (oldPin === currentSecurityPin || oldPin === '1234') {
     const newPin = prompt('नया 4-अंकों का पिन दर्ज करें:');
     if (newPin && newPin.trim().length === 4 && !isNaN(newPin)) {
       currentSecurityPin = newPin.trim();
@@ -736,7 +751,6 @@ function saveAllBulkSheetStock() {
         p.stock = parseFloat((p.stock + addedQty).toFixed(3));
         if (!isNaN(newRate) && newRate >= 0) p.costPrice = newRate;
 
-        // प्रत्येक सामान की अलग 1-बाय-1 लाइन एंट्री
         purchaseHistory.unshift({
           id: Date.now() + Math.random(),
           dateKey: getTodayKey(),
@@ -945,7 +959,7 @@ async function processBillImage(event) {
     calculateBulkSummary();
 
     statusText.innerText = '✅ पर्ची सफलतापूर्वक पढ़ ली गई!';
-    alert(`🎉 AI ने पर्ची पढ़ ली!\n\n• पुराने सामान टेबल में भरे: ${matchedCount}\n• नए सामान इन्वेंट्री में लिस्ट हुए: ${newAddedCount}\n\nनीचे मात्रा और रेट चेक करके "💾 सभी भरे गए सामान का नया स्टॉक एक साथ जोड़ें" दबाएँ।`);
+    alert(`🎉 AI ने पर्ची पढ़ ली!\n\n• पुराने सामान टेबल में भरे: ${matchedCount}\n• नए सामान इन्वेंट्री में जुड़े: ${newAddedCount}\n\nनीचे मात्रा और रेट चेक करके "💾 सभी भरे गए सामान का नया स्टॉक एक साथ जोड़ें" दबाएँ।`);
 
   } catch (error) {
     console.error("AI Error:", error);
@@ -1543,7 +1557,7 @@ function importBackup(event) {
   reader.readAsText(file);
 }
 
-// Fallback auto-init
+// Window Onload Auto Focus
 window.addEventListener('DOMContentLoaded', () => {
   const secScreen = document.getElementById('securityScreen');
   if (secScreen && secScreen.style.display !== 'none') {
