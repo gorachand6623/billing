@@ -1,9 +1,9 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="hi">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>बेस्ट टू बेस्ट किराना स्टोर - Excel स्टाइल POS</title>
+  <title>बेस्ट टू बेस्ट किराना स्टोर - POS व इन्वेंट्री</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -152,7 +152,7 @@
             </div>
           </div>
 
-          <!-- 1-Hour Expiring UPI QR Box -->
+          <!-- 1-Hour Dynamic UPI QR Box -->
           <div class="qr-pay-panel" id="qrPanelBox">
             <div id="screenQRCodeContainer" class="qr-canvas-holder"></div>
             <div>
@@ -281,8 +281,9 @@
                 <th style="text-align:left;">ग्राहक का नाम</th>
                 <th>मोबाइल नंबर</th>
                 <th>कुल बकाया राशि (₹)</th>
-                <th>अंतिम लेनदेन तारीख</th>
+                <th>परमानेंट QR</th>
                 <th>WhatsApp तकादा</th>
+                <th>पूरा चुकता</th>
                 <th>हटाएं</th>
               </tr>
             </thead>
@@ -290,20 +291,34 @@
           </table>
         </div>
       </div>
+
+      <!-- Customer QR Modal -->
+      <div class="modal-overlay" id="customerQRModal">
+        <div class="modal-card" style="text-align: center;">
+          <h3 style="font-size:16px; font-weight:800; margin-bottom:4px;" id="qrModalCustName">ग्राहक QR</h3>
+          <p style="font-size:12px; color:var(--text-muted); margin-bottom:12px;" id="qrModalCustBal">बकाया राशि: ₹0.00</p>
+          <div id="customerModalQRCodeContainer" style="display:flex; justify-content:center; margin-bottom:12px;"></div>
+          <p style="font-size:11px; color:#64748b; margin-bottom:14px;">ग्राहक इस QR को स्कैन करके सीधे बकाया चुका सकता है।</p>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-primary" style="flex:1;" onclick="shareCustomerQROnWhatsApp()">📲 QR लिंक WhatsApp भेजें</button>
+            <button class="btn btn-danger" onclick="closeCustomerQRModal()">बंद करें</button>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <!-- TAB 5: BULK STOCK ENTRY SHEET -->
+    <!-- TAB 5: BULK STOCK ENTRY & INDIVIDUAL ITEM HISTORY -->
     <div id="purchase-tab" class="tab-content">
       <div class="card" style="margin-bottom: 16px;">
         <div class="card-title">
           <span>📦 थोक माल खरीद (सभी सामानों का स्टॉक एक साथ भरें)</span>
-          <div style="display:flex; align-items:center; gap:8px;">
-            <input type="text" id="bulkSupplierName" placeholder="महाजन / मंडी का नाम" style="padding:6px 12px; border:1.5px solid var(--card-border); border-radius:6px; font-size:12.5px; font-weight:700; width:220px;">
-            <input type="text" id="searchBulkPurchase" placeholder="🔍 सामान खोजें..." onkeyup="filterBulkPurchaseSheet()" style="padding:6px 10px; border:1.5px solid var(--card-border); border-radius:6px; font-size:12px; width:140px;">
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <input type="text" id="bulkSupplierName" placeholder="महाजन / मंडी का नाम" style="padding:6px 12px; border:1.5px solid var(--card-border); border-radius:6px; font-size:12.5px; font-weight:700; width:180px;">
+            <input type="text" id="searchBulkPurchase" placeholder="🔍 सामान खोजें..." onkeyup="filterBulkPurchaseSheet()" style="padding:6px 10px; border:1.5px solid var(--card-border); border-radius:6px; font-size:12px; width:130px;">
           </div>
         </div>
 
-        <div class="table-container" style="max-height: 380px; overflow-y: auto; border: 1.5px solid var(--card-border); border-radius: var(--radius-md);">
+        <div class="table-container" style="max-height: 340px; overflow-y: auto; border: 1.5px solid var(--card-border); border-radius: var(--radius-md);">
           <table>
             <thead>
               <tr style="background:#f8fafc; position:sticky; top:0; z-index:2;">
@@ -319,20 +334,30 @@
           </table>
         </div>
 
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 14px; background:#f8fafc; padding:12px 16px; border-radius:8px; border:1px solid #e2e8f0;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 14px; background:#f8fafc; padding:12px 16px; border-radius:8px; border:1px solid #e2e8f0; flex-wrap:wrap; gap:10px;">
           <div style="font-size:13.5px; font-weight:800; color:var(--dark-surface);">
             कुल माल खरीद लागत: <span style="color:var(--primary); font-size:16px;">₹<span id="bulkTotalSummaryCost">0.00</span></span>
           </div>
           <div style="display:flex; gap:8px;">
-            <button class="btn btn-primary" style="padding:12px 20px; font-size:14px;" onclick="saveAllBulkSheetStock()">💾 सभी भरे गए सामान का नया स्टॉक एक साथ जोड़ें</button>
+            <button class="btn btn-primary" style="padding:10px 18px; font-size:13.5px;" onclick="saveAllBulkSheetStock()">💾 सभी भरे गए सामान का नया स्टॉक एक साथ जोड़ें</button>
             <button class="btn btn-danger" onclick="resetBulkSheetInputs()">रीसेट करें</button>
           </div>
         </div>
       </div>
 
+      <!-- Individual Item Purchase History -->
       <div class="card">
-        <div class="card-title"><span>खरीददारी हिसाब (Purchase History - सुधार योग्य)</span></div>
-        <div class="table-container" style="max-height: 300px; overflow-y: auto;">
+        <div class="card-title">
+          <span>खरीददारी हिसाब (Purchase History - सुधार योग्य)</span>
+          <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+            <input type="date" id="purchaseFilterDate" style="padding:5px 8px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:12px; font-weight:700;" onchange="renderPurchaseHistory()">
+            <button class="action-btn edit" onclick="setTodayPurchaseFilter()">आज</button>
+            <button class="action-btn stock" onclick="setYesterdayPurchaseFilter()">कल</button>
+            <button class="action-btn reprint" onclick="showAllPurchaseHistory()">सब देखें</button>
+          </div>
+        </div>
+
+        <div class="table-container" style="max-height: 350px; overflow-y: auto;">
           <table>
             <thead>
               <tr>
@@ -343,6 +368,7 @@
                 <th>दर (₹)</th>
                 <th>लागत (₹)</th>
                 <th>सुधार (Edit)</th>
+                <th>हटाएं</th>
               </tr>
             </thead>
             <tbody id="purchaseHistoryBody"></tbody>
@@ -355,10 +381,11 @@
     <div id="inventory-tab" class="tab-content">
       <div class="card">
         <div class="card-title">
-          <span>📊 इन्वेंट्री स्प्रेडशीट (Excel की तरह सीधे रेट और स्टॉक बदलें)</span>
-          <div style="display:flex; align-items:center; gap:8px;">
-            <input type="text" id="searchInventory" class="search-input" style="max-width:200px; margin:0;" placeholder="🔍 स्टॉक में खोजें..." onkeyup="filterInventoryTable()">
-            <button class="btn btn-primary" style="padding:8px 14px; font-size:12px;" onclick="saveAllExcelInventory()">💾 बदलाव सुरक्षित करें</button>
+          <span>📊 इन्वेंट्री स्प्रेडशीट (Excel मोड)</span>
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <input type="text" id="searchInventory" class="search-input" style="max-width:180px; margin:0;" placeholder="🔍 स्टॉक में खोजें..." onkeyup="filterInventoryTable()">
+            <button class="btn btn-orange" style="padding:8px 12px; font-size:12px;" onclick="switchTab('add-product-tab', 'btn-add')">➕ नया सामान जोड़ें</button>
+            <button class="btn btn-primary" style="padding:8px 12px; font-size:12px;" onclick="saveAllExcelInventory()">💾 बदलाव सुरक्षित करें</button>
           </div>
         </div>
 
@@ -382,7 +409,7 @@
 
         <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 14px; background:#f8fafc; padding:12px 16px; border-radius:8px; border:1px solid #e2e8f0;">
           <div style="font-size:12.5px; font-weight:700; color:var(--text-muted);">
-            💡 <b>टिप:</b> किसी भी बॉक्स में सीधे क्लिक करके नया रेट या स्टॉक टाइप करें और फिर <b>"बदलाव सुरक्षित करें"</b> दबाएँ।
+            💡 सीधे बॉक्स में रेट या स्टॉक बदलकर <b>"बदलाव सुरक्षित करें"</b> दबाएँ।
           </div>
           <div>
             <button class="btn btn-primary" style="padding:10px 22px; font-size:13.5px;" onclick="saveAllExcelInventory()">💾 सभी बदले गए रेट व स्टॉक सेव करें</button>
