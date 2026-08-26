@@ -16,7 +16,7 @@ let db = null;
 let isFirebaseReady = false;
 
 try {
-  if (typeof firebase !== 'undefined') {
+  if (typeof firebase !== 'undefined' && firebase.apps) {
     if (firebase.apps.length === 0) {
       firebase.initializeApp(firebaseConfig);
     }
@@ -28,32 +28,41 @@ try {
 }
 
 // ==============================================
-// 2. MAIN DATA & STATE
+// 2. MAIN INVENTORY DATA
 // ==============================================
-let inventory = JSON.parse(localStorage.getItem('mandal_pos_stable')) || [
+const defaultInventory = [
   { id: 101, name: 'चीनी (Sugar)', unit: 'Kg', costPrice: 38, price: 44, stock: 50 },
   { id: 102, name: 'अरहर दाल', unit: 'Kg', costPrice: 135, price: 160, stock: 30 },
   { id: 103, name: 'सरसों तेल 1L', unit: 'Ltr', costPrice: 120, price: 140, stock: 25 },
   { id: 104, name: 'फॉर्च्यून रिफाइंड', unit: 'Pkt', costPrice: 105, price: 125, stock: 15 },
-  { id: 105, name: 'लाइफबॉय साबुन', unit: 'Pc', costPrice: 8, price: 10, stock: 0 }
+  { id: 105, name: 'हल्दी पाउडर', unit: 'Kg', costPrice: 180, price: 210, stock: 20 },
+  { id: 106, name: 'टाटा नमक', unit: 'Pkt', costPrice: 24, price: 28, stock: 40 },
+  { id: 107, name: 'लाइफबॉय साबुन', unit: 'Pc', costPrice: 8, price: 10, stock: 12 }
 ];
 
-let salesHistory = JSON.parse(localStorage.getItem('mandal_sales_stable')) || [];
-let purchaseHistory = JSON.parse(localStorage.getItem('mandal_purchase_stable')) || [];
-let khataLedger = JSON.parse(localStorage.getItem('mandal_khata_stable')) || [];
+let rawInv = localStorage.getItem('mandal_pos_stable');
+let inventory = [];
+try {
+  inventory = (rawInv && JSON.parse(rawInv).length > 0) ? JSON.parse(rawInv) : defaultInventory;
+} catch(e) {
+  inventory = defaultInventory;
+}
+
+let salesHistory = JSON.parse(localStorage.getItem('mandal_sales_stable') || '[]');
+let purchaseHistory = JSON.parse(localStorage.getItem('mandal_purchase_stable') || '[]');
+let khataLedger = JSON.parse(localStorage.getItem('mandal_khata_stable') || '[]');
 let upiID = localStorage.getItem('mandal_upi_id') || '6204339748-3@ybl';
 
 let currentBill = [];
 let discountType = 'rs'; 
 let discountValue = 0;
-
 let qrTimerInterval = null;
 let qrSecondsLeft = 3600; 
 let currentSessionRef = '';
 let selectedKhataCustomer = null;
 
 // ==============================================
-// 3. REALTIME SYNC & AUTO-INIT
+// 3. REALTIME SYNC & AUTO LOAD
 // ==============================================
 function initAppWithCloudSync() {
   renderUI();
@@ -65,7 +74,7 @@ function initAppWithCloudSync() {
       db.collection('kirana_store').doc('store_data').onSnapshot((doc) => {
         if (doc && doc.exists) {
           const cloudData = doc.data();
-          if (cloudData.inventory) inventory = cloudData.inventory;
+          if (cloudData.inventory && cloudData.inventory.length > 0) inventory = cloudData.inventory;
           if (cloudData.salesHistory) salesHistory = cloudData.salesHistory;
           if (cloudData.purchaseHistory) purchaseHistory = cloudData.purchaseHistory;
           if (cloudData.khataLedger) khataLedger = cloudData.khataLedger;
@@ -83,11 +92,11 @@ function initAppWithCloudSync() {
           saveState();
         }
       }, (err) => {
-        console.warn("Firestore listener error:", err);
+        console.warn("Firestore error:", err);
         if (statusBadge) statusBadge.innerHTML = '🟡 ऑफलाइन मोड';
       });
     } catch (e) {
-      console.warn("Sync setup error:", e);
+      console.warn("Sync error:", e);
       if (statusBadge) statusBadge.innerHTML = '🟡 ऑफलाइन मोड';
     }
   }
@@ -126,7 +135,7 @@ function getProductEmoji(name) {
   if (n.includes('तेल') || n.includes('oil') || n.includes('रिफाइंड')) return '🛢️';
   if (n.includes('दाल') || n.includes('चावल') || n.includes('आटा') || n.includes('गेहूं') || n.includes('सूजी') || n.includes('मैदा')) return '🌾';
   if (n.includes('चीनी') || n.includes('sugar') || n.includes('गुड़') || n.includes('मीठा')) return '🍬';
-  if (n.includes('साबुन') || n.includes('सर्फ़') || n.includes('डिटर्जेंट') || n.includes('soap')) return '🧼';
+  if (n.includes('साबुन') || n.includes('सर्फ़') || n.includes('डिटर्जेंट') || n.includes('soap') || n.includes('निरमा')) return '🧼';
   if (n.includes('मसाला') || n.includes('हल्दी') || n.includes('मिर्च') || n.includes('धनिया')) return '🌶️';
   if (n.includes('चाय') || n.includes('कॉफी')) return '☕';
   if (n.includes('बिस्कुट') || n.includes('नमकीन') || n.includes('कुरकुरे')) return '🍪';
@@ -178,6 +187,7 @@ function switchTab(tabId, btnId) {
   if (targetTab) targetTab.classList.add('active');
   if (targetBtn) targetBtn.classList.add('active');
 
+  if (tabId === 'pos-tab') renderCatalog(inventory);
   if (tabId === 'mandi-tab') renderMandiOrderTable();
   if (tabId === 'khata-tab') renderKhataTable();
   if (tabId === 'sales-report-tab') renderSalesReport();
@@ -1515,7 +1525,9 @@ function importBackup(event) {
   reader.readAsText(file);
 }
 
-// ऑटो-ओपन सिस्टम (पेज लोड होते ही सीधे काउंटर चालू)
-window.addEventListener('DOMContentLoaded', () => {
+// ऑटो-एक्सीक्यूट
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initAppWithCloudSync);
+} else {
   initAppWithCloudSync();
-});
+}
