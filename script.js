@@ -28,63 +28,7 @@ try {
 }
 
 // ==============================================
-// 2. SECURITY PIN LOGIC
-// ==============================================
-let currentSecurityPin = localStorage.getItem('mandal_app_pin') || '1234';
-
-function unlockApp() {
-  const pinInput = document.getElementById('inputPinField');
-  const enteredPin = pinInput ? pinInput.value.trim() : '';
-
-  if (enteredPin === currentSecurityPin || enteredPin === '1234') {
-    const secScreen = document.getElementById('securityScreen');
-    const mainApp = document.getElementById('mainApp');
-
-    if (secScreen) secScreen.style.display = 'none';
-    if (mainApp) mainApp.style.display = 'block';
-
-    initAppWithCloudSync();
-  } else {
-    alert('गलत पिन! डिफ़ॉल्ट पिन "1234" दर्ज करें।');
-    if (pinInput) {
-      pinInput.value = '';
-      pinInput.focus();
-    }
-  }
-}
-
-function lockApp() {
-  const secScreen = document.getElementById('securityScreen');
-  const mainApp = document.getElementById('mainApp');
-  const pinInput = document.getElementById('inputPinField');
-
-  if (mainApp) mainApp.style.display = 'none';
-  if (secScreen) secScreen.style.display = 'flex';
-  if (pinInput) {
-    pinInput.value = '';
-    pinInput.focus();
-  }
-}
-
-function changePinPrompt() {
-  const oldPin = prompt('वर्तमान सुरक्षा पिन दर्ज करें:');
-  if (oldPin === currentSecurityPin || oldPin === '1234') {
-    const newPin = prompt('नया 4-अंकों का पिन दर्ज करें:');
-    if (newPin && newPin.trim().length === 4 && !isNaN(newPin)) {
-      currentSecurityPin = newPin.trim();
-      localStorage.setItem('mandal_app_pin', currentSecurityPin);
-      saveState();
-      alert('सुरक्षा पिन बदल दिया गया! नया पिन: ' + currentSecurityPin);
-    } else {
-      alert('अमान्य पिन!');
-    }
-  } else if (oldPin !== null) {
-    alert('गलत पुराना पिन!');
-  }
-}
-
-// ==============================================
-// 3. MAIN DATA
+// 2. MAIN DATA & STATE
 // ==============================================
 let inventory = JSON.parse(localStorage.getItem('mandal_pos_stable')) || [
   { id: 101, name: 'चीनी (Sugar)', unit: 'Kg', costPrice: 38, price: 44, stock: 50 },
@@ -109,7 +53,7 @@ let currentSessionRef = '';
 let selectedKhataCustomer = null;
 
 // ==============================================
-// 4. REALTIME SYNC
+// 3. REALTIME SYNC & AUTO-INIT
 // ==============================================
 function initAppWithCloudSync() {
   renderUI();
@@ -126,10 +70,6 @@ function initAppWithCloudSync() {
           if (cloudData.purchaseHistory) purchaseHistory = cloudData.purchaseHistory;
           if (cloudData.khataLedger) khataLedger = cloudData.khataLedger;
           if (cloudData.upiID) upiID = cloudData.upiID;
-          if (cloudData.securityPin) {
-            currentSecurityPin = cloudData.securityPin;
-            localStorage.setItem('mandal_app_pin', currentSecurityPin);
-          }
 
           localStorage.setItem('mandal_pos_stable', JSON.stringify(inventory));
           localStorage.setItem('mandal_sales_stable', JSON.stringify(salesHistory));
@@ -168,7 +108,6 @@ function saveState() {
         purchaseHistory: purchaseHistory,
         khataLedger: khataLedger,
         upiID: upiID,
-        securityPin: currentSecurityPin,
         lastUpdated: new Date().toISOString()
       }, { merge: true }).catch(err => console.error("Cloud Save Error:", err));
     } catch(e) {
@@ -180,7 +119,7 @@ function saveState() {
 }
 
 // ==============================================
-// 5. HELPER FUNCTIONS
+// 4. HELPER FUNCTIONS
 // ==============================================
 function getProductEmoji(name) {
   const n = (name || '').toLowerCase();
@@ -571,7 +510,7 @@ function clearBill() {
 }
 
 // ==========================================================
-// 6. EXCEL SPREADSHEET INVENTORY & STOCK ENGINE
+// 5. EXCEL SPREADSHEET INVENTORY & STOCK ENGINE
 // ==========================================================
 function renderInventoryTable(products = inventory) {
   const tbody = document.getElementById('inventoryTableBody');
@@ -660,7 +599,7 @@ function filterInventoryTable() {
 }
 
 // ==========================================================
-// 7. INDIVIDUAL ITEM BULK PURCHASE & HISTORY ENGINE
+// 6. INDIVIDUAL ITEM BULK PURCHASE & HISTORY ENGINE
 // ==========================================================
 function renderBulkPurchaseSheet(products = inventory) {
   const tbody = document.getElementById('bulkPurchaseSheetBody');
@@ -889,7 +828,7 @@ function showAllPurchaseHistory() {
 }
 
 // ==========================================================
-// 8. GEMINI AI OCR BILL SCANNER (CAMERA + GALLERY)
+// 7. GEMINI AI OCR BILL SCANNER (CAMERA + GALLERY)
 // ==========================================================
 async function processBillImage(event) {
   const file = event.target.files[0];
@@ -934,7 +873,6 @@ Return ONLY a valid raw JSON object matching this structure with NO markdown or 
     }
 
     let rawText = resJson.candidates[0].content.parts[0].text;
-
     rawText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
     const parsedData = JSON.parse(rawText);
 
@@ -1003,7 +941,7 @@ function fileToBase64(file) {
 }
 
 // ==============================================
-// 9. PRINT & CHECKOUT ENGINE
+// 8. PRINT & CHECKOUT ENGINE
 // ==============================================
 function generatePrintHTML(order, mode) {
   let rowsHtml = '';
@@ -1542,7 +1480,6 @@ function exportBackup() {
     purchaseHistory: purchaseHistory,
     khataLedger: khataLedger,
     upiID: upiID,
-    securityPin: currentSecurityPin,
     invoiceDate: localStorage.getItem('mandal_inv_date'),
     invoiceSeq: localStorage.getItem('mandal_inv_seq')
   };
@@ -1566,10 +1503,6 @@ function importBackup(event) {
         purchaseHistory = data.purchaseHistory || [];
         khataLedger = data.khataLedger || [];
         if (data.upiID) upiID = data.upiID;
-        if (data.securityPin) {
-          currentSecurityPin = data.securityPin;
-          localStorage.setItem('mandal_app_pin', currentSecurityPin);
-        }
         if (data.invoiceDate) localStorage.setItem('mandal_inv_date', data.invoiceDate);
         if (data.invoiceSeq) localStorage.setItem('mandal_inv_seq', data.invoiceSeq);
         saveState();
@@ -1582,11 +1515,7 @@ function importBackup(event) {
   reader.readAsText(file);
 }
 
-// Window Onload Auto Focus
+// ऑटो-ओपन सिस्टम (पेज लोड होते ही सीधे काउंटर चालू)
 window.addEventListener('DOMContentLoaded', () => {
-  const secScreen = document.getElementById('securityScreen');
-  if (secScreen && secScreen.style.display !== 'none') {
-    const pinInp = document.getElementById('inputPinField');
-    if (pinInp) pinInp.focus();
-  }
+  initAppWithCloudSync();
 });
