@@ -1,8 +1,6 @@
+﻿// ==============================================
+// 1. FIREBASE CONFIG & INITIALIZATION
 // ==============================================
-// 1. GEMINI AI & FIREBASE CONFIG
-// ==============================================
-const GEMINI_API_KEY = "AQ.Ab8RN6Isba-pyit9HJI3XSwU4Iv6yRo2diE419r3tWSh0JtJqQ";
-
 const firebaseConfig = {
   apiKey: "AIzaSyD775jRZe9ApSzxmo6u2ZVkeOz-Hbz_m5A",
   authDomain: "best-to-best-kirana.firebaseapp.com",
@@ -16,7 +14,7 @@ let db = null;
 let isFirebaseReady = false;
 
 try {
-  if (typeof firebase !== 'undefined' && firebase.apps) {
+  if (typeof firebase !== 'undefined') {
     if (firebase.apps.length === 0) {
       firebase.initializeApp(firebaseConfig);
     }
@@ -28,41 +26,73 @@ try {
 }
 
 // ==============================================
-// 2. MAIN INVENTORY DATA
+// 2. SECURITY PIN LOGIC
 // ==============================================
-const defaultInventory = [
+let currentSecurityPin = localStorage.getItem('mandal_app_pin') || '1234';
+
+function unlockApp() {
+  const enteredPin = document.getElementById('inputPinField').value.trim();
+  if (enteredPin === currentSecurityPin) {
+    document.getElementById('securityScreen').style.display = 'none';
+    document.getElementById('mainApp').style.display = 'block';
+    initAppWithCloudSync();
+  } else {
+    alert('गलत पिन! कृपया सही 4-अंकों का पिन दर्ज करें।');
+    document.getElementById('inputPinField').value = '';
+    document.getElementById('inputPinField').focus();
+  }
+}
+
+function lockApp() {
+  document.getElementById('mainApp').style.display = 'none';
+  document.getElementById('securityScreen').style.display = 'flex';
+  document.getElementById('inputPinField').value = '';
+  document.getElementById('inputPinField').focus();
+}
+
+function changePinPrompt() {
+  const oldPin = prompt('वर्तमान सुरक्षा पिन दर्ज करें:');
+  if (oldPin === currentSecurityPin) {
+    const newPin = prompt('नया 4-अंकों का पिन दर्ज करें:');
+    if (newPin && newPin.trim().length === 4 && !isNaN(newPin)) {
+      currentSecurityPin = newPin.trim();
+      localStorage.setItem('mandal_app_pin', currentSecurityPin);
+      saveState();
+      alert('सुरक्षा पिन बदल दिया गया! नया पिन: ' + currentSecurityPin);
+    } else {
+      alert('अमान्य पिन!');
+    }
+  } else if (oldPin !== null) {
+    alert('गलत पुराना पिन!');
+  }
+}
+
+// ==============================================
+// 3. MAIN DATA
+// ==============================================
+let inventory = JSON.parse(localStorage.getItem('mandal_pos_stable')) || [
   { id: 101, name: 'चीनी (Sugar)', unit: 'Kg', costPrice: 38, price: 44, stock: 50 },
   { id: 102, name: 'अरहर दाल', unit: 'Kg', costPrice: 135, price: 160, stock: 30 },
   { id: 103, name: 'सरसों तेल 1L', unit: 'Ltr', costPrice: 120, price: 140, stock: 25 },
   { id: 104, name: 'फॉर्च्यून रिफाइंड', unit: 'Pkt', costPrice: 105, price: 125, stock: 15 },
-  { id: 105, name: 'हल्दी पाउडर', unit: 'Kg', costPrice: 180, price: 210, stock: 20 },
-  { id: 106, name: 'टाटा नमक', unit: 'Pkt', costPrice: 24, price: 28, stock: 40 },
-  { id: 107, name: 'लाइफबॉय साबुन', unit: 'Pc', costPrice: 8, price: 10, stock: 12 }
+  { id: 105, name: 'लाइफबॉय साबुन', unit: 'Pc', costPrice: 8, price: 10, stock: 0 }
 ];
 
-let rawInv = localStorage.getItem('mandal_pos_stable');
-let inventory = [];
-try {
-  inventory = (rawInv && JSON.parse(rawInv).length > 0) ? JSON.parse(rawInv) : defaultInventory;
-} catch(e) {
-  inventory = defaultInventory;
-}
-
-let salesHistory = JSON.parse(localStorage.getItem('mandal_sales_stable') || '[]');
-let purchaseHistory = JSON.parse(localStorage.getItem('mandal_purchase_stable') || '[]');
-let khataLedger = JSON.parse(localStorage.getItem('mandal_khata_stable') || '[]');
+let salesHistory = JSON.parse(localStorage.getItem('mandal_sales_stable')) || [];
+let purchaseHistory = JSON.parse(localStorage.getItem('mandal_purchase_stable')) || [];
+let khataLedger = JSON.parse(localStorage.getItem('mandal_khata_stable')) || [];
 let upiID = localStorage.getItem('mandal_upi_id') || '6204339748-3@ybl';
 
 let currentBill = [];
 let discountType = 'rs'; 
 let discountValue = 0;
+
 let qrTimerInterval = null;
 let qrSecondsLeft = 3600; 
 let currentSessionRef = '';
-let selectedKhataCustomer = null;
 
 // ==============================================
-// 3. REALTIME SYNC & AUTO LOAD
+// 4. REALTIME SYNC
 // ==============================================
 function initAppWithCloudSync() {
   renderUI();
@@ -74,11 +104,15 @@ function initAppWithCloudSync() {
       db.collection('kirana_store').doc('store_data').onSnapshot((doc) => {
         if (doc && doc.exists) {
           const cloudData = doc.data();
-          if (cloudData.inventory && cloudData.inventory.length > 0) inventory = cloudData.inventory;
+          if (cloudData.inventory) inventory = cloudData.inventory;
           if (cloudData.salesHistory) salesHistory = cloudData.salesHistory;
           if (cloudData.purchaseHistory) purchaseHistory = cloudData.purchaseHistory;
           if (cloudData.khataLedger) khataLedger = cloudData.khataLedger;
           if (cloudData.upiID) upiID = cloudData.upiID;
+          if (cloudData.securityPin) {
+            currentSecurityPin = cloudData.securityPin;
+            localStorage.setItem('mandal_app_pin', currentSecurityPin);
+          }
 
           localStorage.setItem('mandal_pos_stable', JSON.stringify(inventory));
           localStorage.setItem('mandal_sales_stable', JSON.stringify(salesHistory));
@@ -92,11 +126,11 @@ function initAppWithCloudSync() {
           saveState();
         }
       }, (err) => {
-        console.warn("Firestore error:", err);
+        console.warn("Firestore listener error:", err);
         if (statusBadge) statusBadge.innerHTML = '🟡 ऑफलाइन मोड';
       });
     } catch (e) {
-      console.warn("Sync error:", e);
+      console.warn("Sync setup error:", e);
       if (statusBadge) statusBadge.innerHTML = '🟡 ऑफलाइन मोड';
     }
   }
@@ -117,6 +151,7 @@ function saveState() {
         purchaseHistory: purchaseHistory,
         khataLedger: khataLedger,
         upiID: upiID,
+        securityPin: currentSecurityPin,
         lastUpdated: new Date().toISOString()
       }, { merge: true }).catch(err => console.error("Cloud Save Error:", err));
     } catch(e) {
@@ -128,14 +163,14 @@ function saveState() {
 }
 
 // ==============================================
-// 4. HELPER FUNCTIONS
+// 5. HELPER FUNCTIONS
 // ==============================================
 function getProductEmoji(name) {
   const n = (name || '').toLowerCase();
   if (n.includes('तेल') || n.includes('oil') || n.includes('रिफाइंड')) return '🛢️';
   if (n.includes('दाल') || n.includes('चावल') || n.includes('आटा') || n.includes('गेहूं') || n.includes('सूजी') || n.includes('मैदा')) return '🌾';
   if (n.includes('चीनी') || n.includes('sugar') || n.includes('गुड़') || n.includes('मीठा')) return '🍬';
-  if (n.includes('साबुन') || n.includes('सर्फ़') || n.includes('डिटर्जेंट') || n.includes('soap') || n.includes('निरमा')) return '🧼';
+  if (n.includes('साबुन') || n.includes('सर्फ़') || n.includes('डिटर्जेंट') || n.includes('soap')) return '🧼';
   if (n.includes('मसाला') || n.includes('हल्दी') || n.includes('मिर्च') || n.includes('धनिया')) return '🌶️';
   if (n.includes('चाय') || n.includes('कॉफी')) return '☕';
   if (n.includes('बिस्कुट') || n.includes('नमकीन') || n.includes('कुरकुरे')) return '🍪';
@@ -147,15 +182,6 @@ function getTodayKey() {
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, '0');
   const day = String(now.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-function getYesterdayKey() {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
 
@@ -187,7 +213,6 @@ function switchTab(tabId, btnId) {
   if (targetTab) targetTab.classList.add('active');
   if (targetBtn) targetBtn.classList.add('active');
 
-  if (tabId === 'pos-tab') renderCatalog(inventory);
   if (tabId === 'mandi-tab') renderMandiOrderTable();
   if (tabId === 'khata-tab') renderKhataTable();
   if (tabId === 'sales-report-tab') renderSalesReport();
@@ -520,7 +545,7 @@ function clearBill() {
 }
 
 // ==========================================================
-// 5. EXCEL SPREADSHEET INVENTORY & STOCK ENGINE
+// 6. EXCEL SPREADSHEET INVENTORY & STOCK ENGINE
 // ==========================================================
 function renderInventoryTable(products = inventory) {
   const tbody = document.getElementById('inventoryTableBody');
@@ -589,6 +614,7 @@ function saveAllExcelInventory() {
         p.stock = newStock;
         changeCount++;
 
+        // Live Bill sync
         const bItem = currentBill.find(b => b.id === p.id);
         if (bItem) {
           bItem.price = p.price;
@@ -609,7 +635,7 @@ function filterInventoryTable() {
 }
 
 // ==========================================================
-// 6. INDIVIDUAL ITEM BULK PURCHASE & HISTORY ENGINE
+// 7. BULK STOCK ENTRY SHEET
 // ==========================================================
 function renderBulkPurchaseSheet(products = inventory) {
   const tbody = document.getElementById('bulkPurchaseSheetBody');
@@ -721,47 +747,9 @@ function saveAllBulkSheetStock() {
     return;
   }
 
-  alert(`सफलतापूर्वक ${updatedCount} सामानों का नया स्टॉक अलग-अलग जुड़ गया!`);
+  alert(`सफलतापूर्वक ${updatedCount} सामानों का नया स्टॉक जुड़ गया!`);
   resetBulkSheetInputs();
   saveState();
-}
-
-function renderPurchaseHistory() {
-  const filterInput = document.getElementById('purchaseFilterDate');
-  const selectedDate = filterInput ? filterInput.value : '';
-  const isAllMode = !filterInput || filterInput.dataset.mode === 'all' || !selectedDate;
-
-  const filteredPurchases = isAllMode 
-    ? purchaseHistory 
-    : purchaseHistory.filter(p => p.dateKey === selectedDate);
-
-  const tbody = document.getElementById('purchaseHistoryBody');
-  if (!tbody) return;
-  tbody.innerHTML = '';
-
-  if (filteredPurchases.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" style="padding:15px; color:var(--text-muted);">कोई खरीद रिकॉर्ड उपलब्ध नहीं है।</td></tr>`;
-    return;
-  }
-
-  filteredPurchases.forEach(p => {
-    const name = p.productName || (p.items ? p.items.map(i => i.name).join(', ') : 'सामान');
-    const qtyStr = p.qty !== undefined ? `${p.qty} ${p.unit || ''}` : `${p.itemCount || 1} आइटम`;
-    const rateStr = p.rate !== undefined ? `₹${p.rate}` : '-';
-
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td style="color:var(--text-muted); font-weight:600;">${p.dateStr}</td>
-      <td style="text-align:left; font-weight:700;">${name}</td>
-      <td>${p.supplier || 'थोक मंडी'}</td>
-      <td style="font-weight:800; color:var(--primary);">${qtyStr}</td>
-      <td>${rateStr}</td>
-      <td style="font-weight:800; color:var(--accent-orange);">₹${(p.totalCost || 0).toFixed(2)}</td>
-      <td><button class="action-btn edit" onclick="editPurchaseRecord(${p.id})">✎ सुधार करें</button></td>
-      <td><button class="action-btn del" onclick="deleteSinglePurchaseRecord(${p.id})">×</button></td>
-    `;
-    tbody.appendChild(tr);
-  });
 }
 
 function editPurchaseRecord(purchaseId) {
@@ -796,173 +784,31 @@ function editPurchaseRecord(purchaseId) {
   alert('खरीददारी हिसाब सुधर गया!');
 }
 
-function deleteSinglePurchaseRecord(purchaseId) {
-  if (confirm('क्या आप सचमुच इस खरीद रिकॉर्ड को हटाना चाहते हैं?')) {
-    const p = purchaseHistory.find(item => item.id === purchaseId);
-    if (p) {
-      const prod = inventory.find(i => i.name === p.productName);
-      if (prod && p.qty) {
-        prod.stock = parseFloat(Math.max(0, prod.stock - p.qty).toFixed(3));
-      }
-    }
-    purchaseHistory = purchaseHistory.filter(item => item.id !== purchaseId);
-    saveState();
+function renderPurchaseHistory() {
+  const tbody = document.getElementById('purchaseHistoryBody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  if (purchaseHistory.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="padding:15px; color:var(--text-muted);">कोई खरीद रिकॉर्ड उपलब्ध नहीं है।</td></tr>`;
+    return;
   }
+  purchaseHistory.forEach(p => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="color:var(--text-muted); font-weight:600;">${p.dateStr}</td>
+      <td style="text-align:left; font-weight:700;">${p.productName}</td>
+      <td>${p.supplier}</td>
+      <td style="font-weight:800; color:var(--primary);">${p.qty} ${p.unit}</td>
+      <td>₹${p.rate}</td>
+      <td style="font-weight:800; color:var(--accent-orange);">₹${(p.totalCost || 0).toFixed(2)}</td>
+      <td><button class="action-btn edit" onclick="editPurchaseRecord(${p.id})">✎ सुधार करें</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
 }
 
-function setTodayPurchaseFilter() {
-  const filterInput = document.getElementById('purchaseFilterDate');
-  if (filterInput) {
-    filterInput.dataset.mode = 'date';
-    filterInput.value = getTodayKey();
-  }
-  renderPurchaseHistory();
-}
-
-function setYesterdayPurchaseFilter() {
-  const filterInput = document.getElementById('purchaseFilterDate');
-  if (filterInput) {
-    filterInput.dataset.mode = 'date';
-    filterInput.value = getYesterdayKey();
-  }
-  renderPurchaseHistory();
-}
-
-function showAllPurchaseHistory() {
-  const filterInput = document.getElementById('purchaseFilterDate');
-  if (filterInput) {
-    filterInput.dataset.mode = 'all';
-    filterInput.value = '';
-  }
-  renderPurchaseHistory();
-}
-
-// ==========================================================
-// 8. GEMINI AI OCR BILL SCANNER (FIXED BEARER AUTH)
-// ==========================================================
-const GEMINI_API_KEY = "AQ.Ab8RN6Isba-pyit9HJI3XSwU4Iv6yRo2diE419r3tWSh0JtJqQ";
-
-async function processBillImage(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  const statusText = document.getElementById('ocrStatusText');
-  statusText.innerHTML = '⏳ AI पर्ची पढ़ रहा है... (कृपया 3-5 सेकंड रुकें)';
-  statusText.style.color = 'var(--primary)';
-
-  try {
-    const base64Data = await fileToBase64(file);
-    const base64Content = base64Data.split(',')[1];
-    const mimeType = file.type || 'image/jpeg';
-
-    const promptText = `Analyze this grocery supply slip/bill (printed or handwritten Hindi/English). 
-Extract the supplier name and an array of items with name, quantity (number only), and purchase rate (number only).
-Return ONLY a valid raw JSON object matching this structure with NO markdown or formatting:
-{"supplier": "string", "items": [{"name": "string", "qty": 0, "rate": 0}]}`;
-
-    // सही एंडपॉइंट
-    const apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
-
-    // Bearer Token और x-goog-api-key दोनों सपोर्ट
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${GEMINI_API_KEY}`,
-        'x-goog-api-key': GEMINI_API_KEY
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            { text: promptText },
-            { inline_data: { mime_type: mimeType, data: base64Content } }
-          ]
-        }]
-      })
-    });
-
-    const resJson = await response.json();
-
-    if (!response.ok) {
-      throw new Error(resJson.error ? resJson.error.message : 'API Error');
-    }
-
-    let rawText = resJson.candidates[0].content.parts[0].text;
-    rawText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
-    const parsedData = JSON.parse(rawText);
-
-    if (parsedData.supplier) {
-      const supEl = document.getElementById('bulkSupplierName');
-      if (supEl) supEl.value = parsedData.supplier;
-    }
-
-    let matchedCount = 0;
-    let newAddedCount = 0;
-
-    if (parsedData.items && Array.isArray(parsedData.items)) {
-      parsedData.items.forEach(item => {
-        const iName = (item.name || '').trim();
-        const iQty = parseFloat(item.qty) || 0;
-        const iRate = parseFloat(item.rate) || 0;
-
-        if (!iName || iQty <= 0) return;
-
-        let existing = inventory.find(p => 
-          p.name.toLowerCase().includes(iName.toLowerCase()) || 
-          iName.toLowerCase().includes(p.name.toLowerCase())
-        );
-
-        if (existing) {
-          const qtyInput = document.getElementById(`bulk_qty_${existing.id}`);
-          const rateInput = document.getElementById(`bulk_rate_${existing.id}`);
-          if (qtyInput) qtyInput.value = iQty;
-          if (rateInput && iRate > 0) rateInput.value = iRate;
-          matchedCount++;
-        } else {
-          inventory.unshift({
-            id: Date.now() + Math.random(),
-            name: iName,
-            unit: 'Kg',
-            costPrice: iRate,
-            price: Math.round(iRate * 1.15) || (iRate + 5),
-            stock: 0
-          });
-          newAddedCount++;
-        }
-      });
-    }
-
-    saveState();
-    renderBulkPurchaseSheet();
-    calculateBulkSummary();
-
-    statusText.innerText = '✅ पर्ची सफलतापूर्वक पढ़ ली गई!';
-    alert(`🎉 AI ने पर्ची पढ़ ली!\n\n• पुराने सामान टेबल में भरे: ${matchedCount}\n• नए सामान लिस्ट हुए: ${newAddedCount}\n\nनीचे मात्रा और रेट चेक करके "💾 सभी भरे गए सामान का नया स्टॉक एक साथ जोड़ें" दबाएँ।`);
-
-  } catch (error) {
-    console.error("AI Scan Error:", error);
-    statusText.innerText = `❌ त्रुटि: ${error.message}`;
-    statusText.style.color = 'var(--danger)';
-  }
-}
-
-    saveState();
-    renderBulkPurchaseSheet();
-    calculateBulkSummary();
-
-    statusText.innerText = '✅ पर्ची सफलतापूर्वक पढ़ ली गई!';
-    alert(`🎉 AI ने पर्ची पढ़ ली!\n\n• पुराने सामान टेबल में भरे: ${matchedCount}\n• नए सामान लिस्ट हुए: ${newAddedCount}\n\nनीचे मात्रा और रेट चेक करके "💾 सभी भरे गए सामान का नया स्टॉक एक साथ जोड़ें" दबाएँ।`);
-
-  } catch (error) {
-    console.error("AI Scan Error:", error);
-    statusText.innerText = `❌ त्रुटि: ${error.message}`;
-    statusText.style.color = 'var(--danger)';
-  }
-}
-
-        
 // ==============================================
-// 8. PRINT & CHECKOUT ENGINE
+// 8. PRINT & CHECKOUT
 // ==============================================
 function generatePrintHTML(order, mode) {
   let rowsHtml = '';
@@ -1321,12 +1167,6 @@ function renderKhataTable(list = khataLedger) {
   const tbody = document.getElementById('khataTableBody');
   if (!tbody) return;
   tbody.innerHTML = '';
-  
-  if (list.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" style="padding:15px; color:var(--text-muted);">कोई उधारी खाता उपलब्ध नहीं है।</td></tr>`;
-    return;
-  }
-
   list.forEach((k, idx) => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -1334,59 +1174,14 @@ function renderKhataTable(list = khataLedger) {
       <td style="text-align:left; font-weight:700;">${k.name}</td>
       <td>${k.phone || '-'}</td>
       <td style="font-weight:800; color:var(--danger);">₹${(k.balance || 0).toFixed(2)}</td>
-      <td>
-        <button class="action-btn edit" onclick="openCustomerQRModal(${k.id})">🔍 परमानेंट QR</button>
-      </td>
+      <td>${k.lastUpdated}</td>
       <td>
         ${k.phone ? `<button class="action-btn whatsapp" onclick="sendWhatsAppReminder('${k.name}', '${k.phone}', ${k.balance})">📲 तकादा</button>` : '-'}
-      </td>
-      <td>
-        <button class="action-btn stock" onclick="quickClearKhata(${k.id})">✅ पूरा चुकता</button>
       </td>
       <td><button class="action-btn del" onclick="deleteKhata(${k.id})">हटाएं</button></td>
     `;
     tbody.appendChild(tr);
   });
-}
-
-function quickClearKhata(id) {
-  const customer = khataLedger.find(k => k.id === id);
-  if (!customer) return;
-
-  if (confirm(`क्या "${customer.name}" ने पूरा ₹${customer.balance} ऑनलाइन/नकद चुका दिया है?`)) {
-    customer.balance = 0;
-    customer.lastUpdated = getTodayKey();
-    saveState();
-    alert(`"${customer.name}" का पूरा खाता चुकता हो गया! बकाया: ₹0`);
-  }
-}
-
-function openCustomerQRModal(id) {
-  const customer = khataLedger.find(k => k.id === id);
-  if (!customer) return;
-
-  selectedKhataCustomer = customer;
-  document.getElementById('qrModalCustName').innerText = customer.name;
-  document.getElementById('qrModalCustBal').innerText = `कुल बकाया: ₹${(customer.balance || 0).toFixed(2)}`;
-
-  const upiUrl = `upi://pay?pa=${encodeURIComponent(upiID)}&pn=${encodeURIComponent('Best To Best Kirana')}&am=${customer.balance.toFixed(2)}&cu=INR&tn=${encodeURIComponent('Udhar Payment - ' + customer.name)}`;
-  
-  drawQRCodeToElement('customerModalQRCodeContainer', upiUrl, 160, 160);
-  document.getElementById('customerQRModal').classList.add('active');
-}
-
-function closeCustomerQRModal() {
-  document.getElementById('customerQRModal').classList.remove('active');
-}
-
-function shareCustomerQROnWhatsApp() {
-  if (!selectedKhataCustomer || !selectedKhataCustomer.phone) {
-    alert('ग्राहक का मोबाइल नंबर दर्ज नहीं है!');
-    return;
-  }
-  const payUrl = `upi://pay?pa=${encodeURIComponent(upiID)}&pn=${encodeURIComponent('Best To Best Kirana')}&am=${selectedKhataCustomer.balance.toFixed(2)}&cu=INR&tn=${encodeURIComponent('Udhar - ' + selectedKhataCustomer.name)}`;
-  const msg = encodeURIComponent(`नमस्ते ${selectedKhataCustomer.name} जी, बेस्ट टू बेस्ट किराना स्टोर से आपका कुल बकाया ₹${selectedKhataCustomer.balance.toFixed(2)} है।\n\nइस लिंक पर क्लिक करके सीधे UPI से भुगतान करें:\n${payUrl}\n\nधन्यवाद!`);
-  window.open(`https://wa.me/91${selectedKhataCustomer.phone}?text=${msg}`, '_blank');
 }
 
 function sendWhatsAppReminder(name, phone, amount) {
@@ -1501,6 +1296,7 @@ function exportBackup() {
     purchaseHistory: purchaseHistory,
     khataLedger: khataLedger,
     upiID: upiID,
+    securityPin: currentSecurityPin,
     invoiceDate: localStorage.getItem('mandal_inv_date'),
     invoiceSeq: localStorage.getItem('mandal_inv_seq')
   };
@@ -1524,6 +1320,10 @@ function importBackup(event) {
         purchaseHistory = data.purchaseHistory || [];
         khataLedger = data.khataLedger || [];
         if (data.upiID) upiID = data.upiID;
+        if (data.securityPin) {
+          currentSecurityPin = data.securityPin;
+          localStorage.setItem('mandal_app_pin', currentSecurityPin);
+        }
         if (data.invoiceDate) localStorage.setItem('mandal_inv_date', data.invoiceDate);
         if (data.invoiceSeq) localStorage.setItem('mandal_inv_seq', data.invoiceSeq);
         saveState();
@@ -1536,9 +1336,11 @@ function importBackup(event) {
   reader.readAsText(file);
 }
 
-// ऑटो-एक्सीक्यूट
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initAppWithCloudSync);
-} else {
-  initAppWithCloudSync();
-}
+// Fallback auto-init
+window.addEventListener('DOMContentLoaded', () => {
+  const secScreen = document.getElementById('securityScreen');
+  if (secScreen && secScreen.style.display !== 'none') {
+    const pinInp = document.getElementById('inputPinField');
+    if (pinInp) pinInp.focus();
+  }
+});
