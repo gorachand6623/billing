@@ -12,6 +12,7 @@ const firebaseConfig = {
 
 let db = null;
 let isFirebaseReady = false;
+let isRemoteUpdating = false;
 
 try {
   if (typeof firebase !== 'undefined') {
@@ -103,6 +104,7 @@ function initAppWithCloudSync() {
     try {
       db.collection('kirana_store').doc('store_data').onSnapshot((doc) => {
         if (doc && doc.exists) {
+          isRemoteUpdating = true;
           const cloudData = doc.data();
           if (cloudData.inventory) inventory = cloudData.inventory;
           if (cloudData.salesHistory) salesHistory = cloudData.salesHistory;
@@ -122,6 +124,7 @@ function initAppWithCloudSync() {
 
           if (statusBadge) statusBadge.innerHTML = '🟢 क्लाउड सिंक चालू';
           renderUI();
+          isRemoteUpdating = false;
         } else {
           saveState();
         }
@@ -143,7 +146,7 @@ function saveState() {
   localStorage.setItem('mandal_khata_stable', JSON.stringify(khataLedger));
   localStorage.setItem('mandal_upi_id', upiID);
 
-  if (isFirebaseReady && db) {
+  if (isFirebaseReady && db && !isRemoteUpdating) {
     try {
       db.collection('kirana_store').doc('store_data').set({
         inventory: inventory,
@@ -243,9 +246,9 @@ function setUPIPrompt() {
   if (newUPI && newUPI.trim() !== '') {
     upiID = newUPI.trim();
     localStorage.setItem('mandal_upi_id', upiID);
-    document.getElementById('upiIdDisplay').innerText = 'UPI: ' + upiID;
+    const upiEl = document.getElementById('upiIdDisplay');
+    if (upiEl) upiEl.innerText = 'UPI: ' + upiID;
     saveState();
-    updateDynamicQRCode();
   }
 }
 
@@ -396,7 +399,7 @@ function renderCatalog(products) {
 }
 
 function filterCatalog() {
-  const q = document.getElementById('searchCatalog').value.toLowerCase();
+  const q = (document.getElementById('searchCatalog').value || '').toLowerCase();
   renderCatalog(inventory.filter(p => p.name.toLowerCase().includes(q)));
 }
 
@@ -532,6 +535,8 @@ function renderBill(rebuildInputs = true) {
   
   const countEl = document.getElementById('billItemCount');
   if (countEl) countEl.innerText = totalItems;
+
+  updateDynamicQRCode();
 }
 
 function clearBill() {
@@ -614,7 +619,6 @@ function saveAllExcelInventory() {
         p.stock = newStock;
         changeCount++;
 
-        // Live Bill sync
         const bItem = currentBill.find(b => b.id === p.id);
         if (bItem) {
           bItem.price = p.price;
@@ -630,7 +634,7 @@ function saveAllExcelInventory() {
 }
 
 function filterInventoryTable() {
-  const q = document.getElementById('searchInventory').value.toLowerCase();
+  const q = (document.getElementById('searchInventory').value || '').toLowerCase();
   renderInventoryTable(inventory.filter(p => p.name.toLowerCase().includes(q)));
 }
 
@@ -670,7 +674,7 @@ function renderBulkPurchaseSheet(products = inventory) {
 }
 
 function filterBulkPurchaseSheet() {
-  const q = document.getElementById('searchBulkPurchase').value.toLowerCase();
+  const q = (document.getElementById('searchBulkPurchase').value || '').toLowerCase();
   renderBulkPurchaseSheet(inventory.filter(p => p.name.toLowerCase().includes(q)));
 }
 
@@ -1113,7 +1117,7 @@ function submitKhataBill() {
     return;
   }
 
-  const billAmount = parseFloat(document.getElementById('grandTotal').innerText);
+  const billAmount = parseFloat(document.getElementById('grandTotal').innerText) || 0;
 
   let customer = khataLedger.find(k => k.name.toLowerCase() === name.toLowerCase());
   if (!customer) {
@@ -1197,7 +1201,7 @@ function deleteKhata(id) {
 }
 
 function filterKhataTable() {
-  const q = document.getElementById('searchKhata').value.toLowerCase();
+  const q = (document.getElementById('searchKhata').value || '').toLowerCase();
   renderKhataTable(khataLedger.filter(k => k.name.toLowerCase().includes(q) || (k.phone && k.phone.includes(q))));
 }
 
