@@ -563,7 +563,7 @@ function clearBill() {
 }
 
 // ==========================================================
-// 7. OCR / CAMERA BILL AUTO-SCANNING SYSTEM
+// 7. OCR / CAMERA BILL AUTO-SCANNING SYSTEM (AUTO-ADD MISSING ITEMS)
 // ==========================================================
 async function processBillImage(event) {
   const file = event.target.files[0];
@@ -571,7 +571,7 @@ async function processBillImage(event) {
 
   const statusBadge = document.getElementById('scanStatusBadge');
   statusBadge.style.display = 'block';
-  statusBadge.innerHTML = '⏳ बिल का फोटो स्कैन हो रहा है... कृपया 4-5 सेकंड प्रतीक्षा करें।';
+  statusBadge.innerHTML = '⏳ बिल स्कैन हो रहा है... कृपया 4-5 सेकंड प्रतीक्षा करें।';
 
   try {
     const { data: { text } } = await Tesseract.recognize(file, 'eng+hin', {
@@ -583,45 +583,74 @@ async function processBillImage(event) {
     });
 
     const lines = text.split('\n');
-    let matchedCount = 0;
+    let matchedExistingCount = 0;
+    let newlyCreatedCount = 0;
 
-    lines.forEach(line => {
-      const cleanLine = line.toLowerCase();
-      
-      inventory.forEach(p => {
-        const prodKeyword = p.name.toLowerCase().split(' ')[0].replace(/[^a-zA-Z0-9\u0900-\u097F]/g, '');
-        if (prodKeyword.length >= 3 && cleanLine.includes(prodKeyword)) {
-          // Extract numbers from line (rates / quantities)
-          const numbers = line.match(/\d+(\.\d+)?/g);
-          if (numbers && numbers.length >= 1) {
-            const qtyInput = document.getElementById(`bulk_qty_${p.id}`);
-            const rateInput = document.getElementById(`bulk_rate_${p.id}`);
-            
-            if (qtyInput) {
-              const detectedQty = parseFloat(numbers[0]);
-              if (detectedQty > 0) qtyInput.value = detectedQty;
-            }
-            if (rateInput && numbers.length >= 2) {
-              const detectedRate = parseFloat(numbers[1]);
-              if (detectedRate > 0) rateInput.value = detectedRate;
-            }
-            matchedCount++;
-          }
-        }
+    lines.forEach(rawLine => {
+      const line = rawLine.trim();
+      if (!line || line.length < 3) return;
+
+      const numbers = line.match(/\d+(\.\d+)?/g);
+      if (!numbers || numbers.length === 0) return;
+
+      const qty = parseFloat(numbers[0]) || 0;
+      const rate = numbers.length >= 2 ? (parseFloat(numbers[1]) || 0) : 0;
+
+      if (qty <= 0) return;
+
+      const cleanName = line.replace(/[\d.,:;₹\-\/\\|_~`!@#$%^&*()+=<>{}\[\]]/g, '').trim();
+      if (!cleanName || cleanName.length < 2) return;
+
+      const existingProd = inventory.find(p => {
+        const pNameClean = p.name.toLowerCase().replace(/[^a-zA-Z0-9\u0900-\u097F]/g, '');
+        const scannedClean = cleanName.toLowerCase().replace(/[^a-zA-Z0-9\u0900-\u097F]/g, '');
+        return pNameClean.includes(scannedClean) || scannedClean.includes(pNameClean);
       });
+
+      if (existingProd) {
+        const qtyInput = document.getElementById(`bulk_qty_${existingProd.id}`);
+        const rateInput = document.getElementById(`bulk_rate_${existingProd.id}`);
+        
+        if (qtyInput) qtyInput.value = qty;
+        if (rateInput && rate > 0) rateInput.value = rate;
+        matchedExistingCount++;
+      } else {
+        let detectedUnit = 'Pc';
+        const lowerLine = line.toLowerCase();
+        if (lowerLine.includes('kg') || lowerLine.includes('किलो') || lowerLine.includes('कि.ग्रा')) detectedUnit = 'Kg';
+        else if (lowerLine.includes('ltr') || lowerLine.includes('लीटर') || lowerLine.includes('lt')) detectedUnit = 'Ltr';
+        else if (lowerLine.includes('pkt') || lowerLine.includes('पैकेट') || lowerLine.includes('packet')) detectedUnit = 'Pkt';
+
+        const newProduct = {
+          id: Date.now() + Math.floor(Math.random() * 1000),
+          name: cleanName,
+          unit: detectedUnit,
+          costPrice: rate,
+          price: rate > 0 ? parseFloat((rate * 1.15).toFixed(2)) : 0,
+          stock: 0
+        };
+
+        inventory.unshift(newProduct);
+        newlyCreatedCount++;
+      }
     });
 
-    calculateBulkSummary();
-
-    if (matchedCount > 0) {
-      statusBadge.innerHTML = `✅ सफलता! बिल से <b>${matchedCount}</b> सामान का डेटा अपने आप भर गया। कृपया चेक करके 'सेव करें' दबाएं।`;
+    if (newlyCreatedCount > 0) {
+      saveState();
+      renderBulkPurchaseSheet();
     } else {
-      statusBadge.innerHTML = `⚠️ फोटो साफ नहीं थी या लिस्ट के नाम से मेल नहीं खाई। आप हाथ से भी मात्रा भर सकते हैं।`;
+      calculateBulkSummary();
+    }
+
+    if (matchedExistingCount > 0 || newlyCreatedCount > 0) {
+      statusBadge.innerHTML = `✅ <b>${matchedExistingCount}</b> पुराने सामान अपडेट हुए और <b>${newlyCreatedCount}</b> नए सामान लिस्ट में खुद जुड़ गए! अब नीचे 'नया स्टॉक जोड़ें' दबाएं।`;
+    } else {
+      statusBadge.innerHTML = `⚠️ फोटो साफ नहीं थी। कृपया साफ रोशनी में फोटो लें।`;
     }
 
   } catch (err) {
-    console.error("OCR Scan Error:", err);
-    statusBadge.innerHTML = '❌ स्कैन करने में त्रुटि हुई। कृपया दोबारा साफ फोटो खींचें।';
+    console.error("OCR Auto-Add Error:", err);
+    statusBadge.innerHTML = '❌ बिल स्कैन करने में त्रुटि हुई। कृपया दोबारा साफ फोटो अपलोड करें।';
   }
 
   event.target.value = '';
@@ -928,21 +957,35 @@ function filterInventoryTable() {
 }
 
 // ==============================================
-// 10. PRINT & CHECKOUT
+// 10. PRINT & CHECKOUT (CORRECTED MAPPING)
 // ==============================================
 function generatePrintHTML(order, mode) {
   let rowsHtml = '';
+  
   order.items.forEach((item, idx) => {
     const tot = (item.qty * item.price).toFixed(2);
-    rowsHtml += `
-      <tr>
-        ${mode === 'a4' ? `<td style="text-align:center; padding:6px; border:1px solid #000;">${idx+1}</td>` : ''}
-        <td style="text-align:left; padding:4px 0; border-bottom:1px dotted #ccc;">${item.name}</td>
-        <td style="text-align:center; padding:4px 0; border-bottom:1px dotted #ccc;">${item.qty} ${item.unit}</td>
-        <td style="text-align:center; padding:4px 0; border-bottom:1px dotted #ccc;">₹${item.price}</td>
-        <td style="text-align:right; padding:4px 0; border-bottom:1px dotted #ccc;">₹${tot}</td>
-      </tr>
-    `;
+    
+    if (mode === 'thermal') {
+      rowsHtml += `
+        <tr>
+          <td style="text-align:left; padding:4px 0; border-bottom:1px dotted #ccc;">${item.name}</td>
+          <td style="text-align:center; padding:4px 0; border-bottom:1px dotted #ccc;">${item.qty} ${item.unit}</td>
+          <td style="text-align:center; padding:4px 0; border-bottom:1px dotted #ccc;">₹${item.price}</td>
+          <td style="text-align:right; padding:4px 0; border-bottom:1px dotted #ccc;">₹${tot}</td>
+        </tr>
+      `;
+    } else {
+      rowsHtml += `
+        <tr>
+          <td style="text-align:center; padding:6px; border:1px solid #000;">${idx + 1}</td>
+          <td style="text-align:left; padding:6px; border:1px solid #000;">${item.name}</td>
+          <td style="text-align:center; padding:6px; border:1px solid #000;">${item.unit}</td>
+          <td style="text-align:center; padding:6px; border:1px solid #000;">${item.qty}</td>
+          <td style="text-align:center; padding:6px; border:1px solid #000;">₹${item.price}</td>
+          <td style="text-align:right; padding:6px; border:1px solid #000;">₹${tot}</td>
+        </tr>
+      `;
+    }
   });
 
   const upiUrl = getOneTimeUPIString(order.grandTotal, order.billNo);
@@ -1052,8 +1095,9 @@ function generatePrintHTML(order, mode) {
         <table>
           <thead>
             <tr>
-              <th>क्र.</th>
+              <th style="width:40px;">क्र.</th>
               <th style="text-align:left; padding:6px;">सामान का विवरण</th>
+              <th>यूनिट</th>
               <th>मात्रा</th>
               <th>दर (₹)</th>
               <th style="text-align:right; padding:6px;">कुल राशि (₹)</th>
