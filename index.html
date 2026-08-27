@@ -12,6 +12,9 @@
   <!-- QR Code Engine -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
+  <!-- Tesseract.js OCR Engine for Bill Scanning -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+
   <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -292,18 +295,33 @@
       </div>
     </div>
 
-    <!-- TAB 5: BULK STOCK ENTRY SHEET -->
+    <!-- TAB 5: BULK STOCK ENTRY SHEET WITH SCANNER & DATE FILTER -->
     <div id="purchase-tab" class="tab-content">
+      
+      <!-- AI / Camera Invoice Scanner Box -->
+      <div class="card" style="margin-bottom: 14px; background: #f0fdf4; border: 1.5px dashed var(--primary);">
+        <div class="card-title" style="border:none; margin:0; padding:0; display:flex; justify-content:space-between; align-items:center;">
+          <span style="color:var(--primary); font-size:14px;">📸 AI ऑटोमेशन: मंडी बिल की फोटो से स्टॉक भरें</span>
+          <div style="display:flex; gap:8px;">
+            <button class="btn-backup" style="background:var(--primary); border:none; padding:6px 12px; font-size:12px;" onclick="document.getElementById('cameraBillInput').click()">📷 कैमरा से फोटो लें</button>
+            <button class="btn-backup" style="background:var(--accent-blue); border:none; padding:6px 12px; font-size:12px;" onclick="document.getElementById('galleryBillInput').click()">🖼️ गैलरी से चुनें</button>
+          </div>
+        </div>
+        <input type="file" id="cameraBillInput" style="display:none" accept="image/*" capture="environment" onchange="processBillImage(event)">
+        <input type="file" id="galleryBillInput" style="display:none" accept="image/*" onchange="processBillImage(event)">
+        <div id="scanStatusBadge" style="display:none; font-size:12px; font-weight:700; color:var(--primary); margin-top:8px;"></div>
+      </div>
+
       <div class="card" style="margin-bottom: 16px;">
         <div class="card-title">
           <span>📦 थोक माल खरीद (सभी सामानों का स्टॉक एक साथ भरें)</span>
           <div style="display:flex; align-items:center; gap:8px;">
-            <input type="text" id="bulkSupplierName" placeholder="महाजन / मंडी का नाम" style="padding:6px 12px; border:1.5px solid var(--card-border); border-radius:6px; font-size:12.5px; font-weight:700; width:220px;">
-            <input type="text" id="searchBulkPurchase" placeholder="🔍 सामान खोजें..." onkeyup="filterBulkPurchaseSheet()" style="padding:6px 10px; border:1.5px solid var(--card-border); border-radius:6px; font-size:12px; width:140px;">
+            <input type="text" id="bulkSupplierName" placeholder="महाजन / मंडी का नाम" style="padding:6px 12px; border:1.5px solid var(--card-border); border-radius:6px; font-size:12.5px; font-weight:700; width:180px;">
+            <input type="text" id="searchBulkPurchase" placeholder="🔍 सामान खोजें..." onkeyup="filterBulkPurchaseSheet()" style="padding:6px 10px; border:1.5px solid var(--card-border); border-radius:6px; font-size:12px; width:130px;">
           </div>
         </div>
 
-        <div class="table-container" style="max-height: 380px; overflow-y: auto; border: 1.5px solid var(--card-border); border-radius: var(--radius-md);">
+        <div class="table-container" style="max-height: 360px; overflow-y: auto; border: 1.5px solid var(--card-border); border-radius: var(--radius-md);">
           <table>
             <thead>
               <tr style="background:#f8fafc; position:sticky; top:0; z-index:2;">
@@ -330,13 +348,28 @@
         </div>
       </div>
 
+      <!-- Purchase History with Date Filter -->
       <div class="card">
-        <div class="card-title"><span>खरीददारी हिसाब (Purchase History - सुधार योग्य)</span></div>
+        <div class="card-title">
+          <span>खरीददारी हिसाब (Purchase History)</span>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <input type="date" id="purchaseFilterDate" style="padding:5px 8px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:12px; font-weight:700;" onchange="renderPurchaseHistory()">
+            <button class="action-btn edit" onclick="setTodayPurchaseFilter()">आज</button>
+            <button class="action-btn stock" onclick="setYesterdayPurchaseFilter()">कल</button>
+            <button class="action-btn edit" style="background:#f1f5f9; color:#475569;" onclick="clearPurchaseFilter()">सभी</button>
+          </div>
+        </div>
+        
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; background:#f8fafc; padding:10px 14px; border-radius:8px; border:1px solid #e2e8f0;">
+          <span style="font-size:12px; font-weight:700; color:var(--text-muted);">तारीख की कुल खरीद लागत:</span>
+          <span style="font-size:16px; font-weight:800; color:var(--accent-orange);">₹<span id="repFilteredPurchaseCost">0.00</span></span>
+        </div>
+
         <div class="table-container" style="max-height: 300px; overflow-y: auto;">
           <table>
             <thead>
               <tr>
-                <th>तारीख</th>
+                <th>तारीख व समय</th>
                 <th style="text-align:left;">सामान</th>
                 <th>सप्लायर</th>
                 <th>मात्रा</th>

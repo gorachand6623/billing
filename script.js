@@ -166,7 +166,7 @@ function saveState() {
 }
 
 // ==============================================
-// 5. HELPER FUNCTIONS
+// 5. HELPER FUNCTIONS & DATES
 // ==============================================
 function getProductEmoji(name) {
   const n = (name || '').toLowerCase();
@@ -182,9 +182,19 @@ function getProductEmoji(name) {
 
 function getTodayKey() {
   const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
+  return formatDateKey(now);
+}
+
+function getYesterdayKey() {
+  const now = new Date();
+  now.setDate(now.getDate() - 1);
+  return formatDateKey(now);
+}
+
+function formatDateKey(dateObj) {
+  const year = dateObj.getFullYear();
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const day = String(dateObj.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
 
@@ -371,6 +381,9 @@ function startOneHourExpiryTimer() {
   }, 1000);
 }
 
+// ==============================================
+// 6. POS BILLING ENGINE
+// ==============================================
 function renderCatalog(products) {
   const grid = document.getElementById('productGrid');
   if (!grid) return;
@@ -550,7 +563,283 @@ function clearBill() {
 }
 
 // ==========================================================
-// 6. EXCEL SPREADSHEET INVENTORY & STOCK ENGINE
+// 7. OCR / CAMERA BILL AUTO-SCANNING SYSTEM
+// ==========================================================
+async function processBillImage(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const statusBadge = document.getElementById('scanStatusBadge');
+  statusBadge.style.display = 'block';
+  statusBadge.innerHTML = '⏳ बिल का फोटो स्कैन हो रहा है... कृपया 4-5 सेकंड प्रतीक्षा करें।';
+
+  try {
+    const { data: { text } } = await Tesseract.recognize(file, 'eng+hin', {
+      logger: m => {
+        if (m.status === 'recognizing text') {
+          statusBadge.innerHTML = `⏳ AI स्कैनिंग चालू है... (${Math.round(m.progress * 100)}%)`;
+        }
+      }
+    });
+
+    const lines = text.split('\n');
+    let matchedCount = 0;
+
+    lines.forEach(line => {
+      const cleanLine = line.toLowerCase();
+      
+      inventory.forEach(p => {
+        const prodKeyword = p.name.toLowerCase().split(' ')[0].replace(/[^a-zA-Z0-9\u0900-\u097F]/g, '');
+        if (prodKeyword.length >= 3 && cleanLine.includes(prodKeyword)) {
+          // Extract numbers from line (rates / quantities)
+          const numbers = line.match(/\d+(\.\d+)?/g);
+          if (numbers && numbers.length >= 1) {
+            const qtyInput = document.getElementById(`bulk_qty_${p.id}`);
+            const rateInput = document.getElementById(`bulk_rate_${p.id}`);
+            
+            if (qtyInput) {
+              const detectedQty = parseFloat(numbers[0]);
+              if (detectedQty > 0) qtyInput.value = detectedQty;
+            }
+            if (rateInput && numbers.length >= 2) {
+              const detectedRate = parseFloat(numbers[1]);
+              if (detectedRate > 0) rateInput.value = detectedRate;
+            }
+            matchedCount++;
+          }
+        }
+      });
+    });
+
+    calculateBulkSummary();
+
+    if (matchedCount > 0) {
+      statusBadge.innerHTML = `✅ सफलता! बिल से <b>${matchedCount}</b> सामान का डेटा अपने आप भर गया। कृपया चेक करके 'सेव करें' दबाएं।`;
+    } else {
+      statusBadge.innerHTML = `⚠️ फोटो साफ नहीं थी या लिस्ट के नाम से मेल नहीं खाई। आप हाथ से भी मात्रा भर सकते हैं।`;
+    }
+
+  } catch (err) {
+    console.error("OCR Scan Error:", err);
+    statusBadge.innerHTML = '❌ स्कैन करने में त्रुटि हुई। कृपया दोबारा साफ फोटो खींचें।';
+  }
+
+  event.target.value = '';
+}
+
+// ==========================================================
+// 8. BULK PURCHASE & HISTORY ENGINE (WITH DATE FILTER)
+// ==========================================================
+function renderBulkPurchaseSheet(products = inventory) {
+  const tbody = document.getElementById('bulkPurchaseSheetBody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  products.forEach((p, idx) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${idx + 1}</td>
+      <td style="text-align:left; font-weight:700;">
+        ${getProductEmoji(p.name)} ${p.name}
+      </td>
+      <td style="color:var(--text-muted); font-weight:700;">
+        ${p.stock} ${p.unit}
+      </td>
+      <td>
+        <input type="number" step="any" class="bulk-qty-input" id="bulk_qty_${p.id}" placeholder="0" oninput="calculateBulkSummary()">
+        <span style="font-size:11px; font-weight:700; color:var(--text-muted);">${p.unit}</span>
+      </td>
+      <td>
+        <input type="number" step="any" class="bulk-rate-input" id="bulk_rate_${p.id}" value="${p.costPrice || 0}" oninput="calculateBulkSummary()">
+      </td>
+      <td style="font-weight:800; color:var(--accent-orange);" id="bulk_cost_${p.id}">
+        ₹0.00
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  calculateBulkSummary();
+}
+
+function filterBulkPurchaseSheet() {
+  const q = (document.getElementById('searchBulkPurchase').value || '').toLowerCase();
+  renderBulkPurchaseSheet(inventory.filter(p => p.name.toLowerCase().includes(q)));
+}
+
+function calculateBulkSummary() {
+  let grandBulkCost = 0;
+
+  inventory.forEach(p => {
+    const qtyInput = document.getElementById(`bulk_qty_${p.id}`);
+    const rateInput = document.getElementById(`bulk_rate_${p.id}`);
+    const costCell = document.getElementById(`bulk_cost_${p.id}`);
+
+    if (qtyInput && rateInput) {
+      const q = parseFloat(qtyInput.value) || 0;
+      const r = parseFloat(rateInput.value) || 0;
+      const total = q * r;
+      grandBulkCost += total;
+      if (costCell) costCell.innerText = '₹' + total.toFixed(2);
+    }
+  });
+
+  const sumCostEl = document.getElementById('bulkTotalSummaryCost');
+  if (sumCostEl) sumCostEl.innerText = grandBulkCost.toFixed(2);
+}
+
+function resetBulkSheetInputs() {
+  inventory.forEach(p => {
+    const qtyInput = document.getElementById(`bulk_qty_${p.id}`);
+    if (qtyInput) qtyInput.value = '';
+  });
+  const supInp = document.getElementById('bulkSupplierName');
+  if (supInp) supInp.value = '';
+  const statusBadge = document.getElementById('scanStatusBadge');
+  if (statusBadge) statusBadge.style.display = 'none';
+  calculateBulkSummary();
+}
+
+function saveAllBulkSheetStock() {
+  const supplier = document.getElementById('bulkSupplierName').value.trim() || 'थोक मंडी';
+  const now = new Date();
+  const d = now.toLocaleDateString('hi-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const t = now.toLocaleTimeString('hi-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+  let updatedCount = 0;
+
+  inventory.forEach(p => {
+    const qtyInput = document.getElementById(`bulk_qty_${p.id}`);
+    const rateInput = document.getElementById(`bulk_rate_${p.id}`);
+
+    if (qtyInput && rateInput) {
+      const addedQty = parseFloat(qtyInput.value);
+      const newRate = parseFloat(rateInput.value);
+
+      if (!isNaN(addedQty) && addedQty > 0) {
+        p.stock = parseFloat((p.stock + addedQty).toFixed(3));
+        if (!isNaN(newRate) && newRate >= 0) p.costPrice = newRate;
+
+        purchaseHistory.unshift({
+          id: Date.now() + Math.random(),
+          dateKey: getTodayKey(),
+          dateStr: `${d} ${t}`,
+          productName: p.name,
+          unit: p.unit,
+          supplier: supplier,
+          qty: addedQty,
+          rate: (!isNaN(newRate) ? newRate : p.costPrice),
+          totalCost: parseFloat((addedQty * (!isNaN(newRate) ? newRate : p.costPrice)).toFixed(2))
+        });
+
+        updatedCount++;
+      }
+    }
+  });
+
+  if (updatedCount === 0) {
+    alert('कृपया कम से कम एक सामान में नई खरीदी मात्रा भरें!');
+    return;
+  }
+
+  alert(`सफलतापूर्वक ${updatedCount} सामानों का नया स्टॉक जुड़ गया!`);
+  resetBulkSheetInputs();
+  saveState();
+}
+
+function renderPurchaseHistory() {
+  const filterInput = document.getElementById('purchaseFilterDate');
+  const selectedDate = filterInput ? filterInput.value : '';
+
+  let filteredPurchases = purchaseHistory;
+  if (selectedDate) {
+    filteredPurchases = purchaseHistory.filter(p => p.dateKey === selectedDate);
+  }
+
+  const tbody = document.getElementById('purchaseHistoryBody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  let totalFilteredCost = 0;
+
+  if (filteredPurchases.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="padding:15px; color:var(--text-muted);">इस तारीख का कोई खरीद रिकॉर्ड उपलब्ध नहीं है।</td></tr>`;
+    const costDisplay = document.getElementById('repFilteredPurchaseCost');
+    if (costDisplay) costDisplay.innerText = '0.00';
+    return;
+  }
+
+  filteredPurchases.forEach(p => {
+    totalFilteredCost += (p.totalCost || 0);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="color:var(--text-muted); font-weight:600;">${p.dateStr}</td>
+      <td style="text-align:left; font-weight:700;">${p.productName}</td>
+      <td>${p.supplier}</td>
+      <td style="font-weight:800; color:var(--primary);">${p.qty} ${p.unit}</td>
+      <td>₹${p.rate}</td>
+      <td style="font-weight:800; color:var(--accent-orange);">₹${(p.totalCost || 0).toFixed(2)}</td>
+      <td><button class="action-btn edit" onclick="editPurchaseRecord(${p.id})">✎ सुधार करें</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  const costDisplay = document.getElementById('repFilteredPurchaseCost');
+  if (costDisplay) costDisplay.innerText = totalFilteredCost.toFixed(2);
+}
+
+function setTodayPurchaseFilter() {
+  const filterInput = document.getElementById('purchaseFilterDate');
+  if (filterInput) filterInput.value = getTodayKey();
+  renderPurchaseHistory();
+}
+
+function setYesterdayPurchaseFilter() {
+  const filterInput = document.getElementById('purchaseFilterDate');
+  if (filterInput) filterInput.value = getYesterdayKey();
+  renderPurchaseHistory();
+}
+
+function clearPurchaseFilter() {
+  const filterInput = document.getElementById('purchaseFilterDate');
+  if (filterInput) filterInput.value = '';
+  renderPurchaseHistory();
+}
+
+function editPurchaseRecord(purchaseId) {
+  const p = purchaseHistory.find(item => item.id === purchaseId);
+  if (!p) return;
+
+  const newQty = prompt(`"${p.productName}" की नई खरीदी मात्रा दर्ज करें:`, p.qty);
+  if (newQty === null) return;
+  const newRate = prompt(`"${p.productName}" का नया खरीद रेट (₹):`, p.rate);
+  if (newRate === null) return;
+
+  const parsedQty = parseFloat(newQty);
+  const parsedRate = parseFloat(newRate);
+
+  if (isNaN(parsedQty) || parsedQty <= 0 || isNaN(parsedRate) || parsedRate < 0) {
+    alert('अमान्य मान दर्ज किया गया!');
+    return;
+  }
+
+  const prod = inventory.find(i => i.name === p.productName);
+  if (prod) {
+    const qtyDiff = parsedQty - p.qty;
+    prod.stock = parseFloat(Math.max(0, prod.stock + qtyDiff).toFixed(3));
+    prod.costPrice = parsedRate;
+  }
+
+  p.qty = parsedQty;
+  p.rate = parsedRate;
+  p.totalCost = parseFloat((parsedQty * parsedRate).toFixed(2));
+
+  saveState();
+  alert('खरीददारी हिसाब सुधर गया!');
+}
+
+// ==========================================================
+// 9. EXCEL SPREADSHEET INVENTORY & STOCK ENGINE
 // ==========================================================
 function renderInventoryTable(products = inventory) {
   const tbody = document.getElementById('inventoryTableBody');
@@ -638,181 +927,8 @@ function filterInventoryTable() {
   renderInventoryTable(inventory.filter(p => p.name.toLowerCase().includes(q)));
 }
 
-// ==========================================================
-// 7. BULK STOCK ENTRY SHEET
-// ==========================================================
-function renderBulkPurchaseSheet(products = inventory) {
-  const tbody = document.getElementById('bulkPurchaseSheetBody');
-  if (!tbody) return;
-  tbody.innerHTML = '';
-
-  products.forEach((p, idx) => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${idx + 1}</td>
-      <td style="text-align:left; font-weight:700;">
-        ${getProductEmoji(p.name)} ${p.name}
-      </td>
-      <td style="color:var(--text-muted); font-weight:700;">
-        ${p.stock} ${p.unit}
-      </td>
-      <td>
-        <input type="number" step="any" class="bulk-qty-input" id="bulk_qty_${p.id}" placeholder="0" oninput="calculateBulkSummary()">
-        <span style="font-size:11px; font-weight:700; color:var(--text-muted);">${p.unit}</span>
-      </td>
-      <td>
-        <input type="number" step="any" class="bulk-rate-input" id="bulk_rate_${p.id}" value="${p.costPrice || 0}" oninput="calculateBulkSummary()">
-      </td>
-      <td style="font-weight:800; color:var(--accent-orange);" id="bulk_cost_${p.id}">
-        ₹0.00
-      </td>
-    `;
-    tbody.appendChild(tr);
-  });
-
-  calculateBulkSummary();
-}
-
-function filterBulkPurchaseSheet() {
-  const q = (document.getElementById('searchBulkPurchase').value || '').toLowerCase();
-  renderBulkPurchaseSheet(inventory.filter(p => p.name.toLowerCase().includes(q)));
-}
-
-function calculateBulkSummary() {
-  let grandBulkCost = 0;
-
-  inventory.forEach(p => {
-    const qtyInput = document.getElementById(`bulk_qty_${p.id}`);
-    const rateInput = document.getElementById(`bulk_rate_${p.id}`);
-    const costCell = document.getElementById(`bulk_cost_${p.id}`);
-
-    if (qtyInput && rateInput) {
-      const q = parseFloat(qtyInput.value) || 0;
-      const r = parseFloat(rateInput.value) || 0;
-      const total = q * r;
-      grandBulkCost += total;
-      if (costCell) costCell.innerText = '₹' + total.toFixed(2);
-    }
-  });
-
-  const sumCostEl = document.getElementById('bulkTotalSummaryCost');
-  if (sumCostEl) sumCostEl.innerText = grandBulkCost.toFixed(2);
-}
-
-function resetBulkSheetInputs() {
-  inventory.forEach(p => {
-    const qtyInput = document.getElementById(`bulk_qty_${p.id}`);
-    if (qtyInput) qtyInput.value = '';
-  });
-  const supInp = document.getElementById('bulkSupplierName');
-  if (supInp) supInp.value = '';
-  calculateBulkSummary();
-}
-
-function saveAllBulkSheetStock() {
-  const supplier = document.getElementById('bulkSupplierName').value.trim() || 'थोक मंडी';
-  const now = new Date();
-  const d = now.toLocaleDateString('hi-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  const t = now.toLocaleTimeString('hi-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
-
-  let updatedCount = 0;
-
-  inventory.forEach(p => {
-    const qtyInput = document.getElementById(`bulk_qty_${p.id}`);
-    const rateInput = document.getElementById(`bulk_rate_${p.id}`);
-
-    if (qtyInput && rateInput) {
-      const addedQty = parseFloat(qtyInput.value);
-      const newRate = parseFloat(rateInput.value);
-
-      if (!isNaN(addedQty) && addedQty > 0) {
-        p.stock = parseFloat((p.stock + addedQty).toFixed(3));
-        if (!isNaN(newRate) && newRate >= 0) p.costPrice = newRate;
-
-        purchaseHistory.unshift({
-          id: Date.now() + Math.random(),
-          dateKey: getTodayKey(),
-          dateStr: `${d} ${t}`,
-          productName: p.name,
-          unit: p.unit,
-          supplier: supplier,
-          qty: addedQty,
-          rate: (!isNaN(newRate) ? newRate : p.costPrice),
-          totalCost: parseFloat((addedQty * (!isNaN(newRate) ? newRate : p.costPrice)).toFixed(2))
-        });
-
-        updatedCount++;
-      }
-    }
-  });
-
-  if (updatedCount === 0) {
-    alert('कृपया कम से कम एक सामान में नई खरीदी मात्रा भरें!');
-    return;
-  }
-
-  alert(`सफलतापूर्वक ${updatedCount} सामानों का नया स्टॉक जुड़ गया!`);
-  resetBulkSheetInputs();
-  saveState();
-}
-
-function editPurchaseRecord(purchaseId) {
-  const p = purchaseHistory.find(item => item.id === purchaseId);
-  if (!p) return;
-
-  const newQty = prompt(`"${p.productName}" की नई खरीदी मात्रा दर्ज करें:`, p.qty);
-  if (newQty === null) return;
-  const newRate = prompt(`"${p.productName}" का नया खरीद रेट (₹):`, p.rate);
-  if (newRate === null) return;
-
-  const parsedQty = parseFloat(newQty);
-  const parsedRate = parseFloat(newRate);
-
-  if (isNaN(parsedQty) || parsedQty <= 0 || isNaN(parsedRate) || parsedRate < 0) {
-    alert('अमान्य मान दर्ज किया गया!');
-    return;
-  }
-
-  const prod = inventory.find(i => i.name === p.productName);
-  if (prod) {
-    const qtyDiff = parsedQty - p.qty;
-    prod.stock = parseFloat(Math.max(0, prod.stock + qtyDiff).toFixed(3));
-    prod.costPrice = parsedRate;
-  }
-
-  p.qty = parsedQty;
-  p.rate = parsedRate;
-  p.totalCost = parseFloat((parsedQty * parsedRate).toFixed(2));
-
-  saveState();
-  alert('खरीददारी हिसाब सुधर गया!');
-}
-
-function renderPurchaseHistory() {
-  const tbody = document.getElementById('purchaseHistoryBody');
-  if (!tbody) return;
-  tbody.innerHTML = '';
-  if (purchaseHistory.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" style="padding:15px; color:var(--text-muted);">कोई खरीद रिकॉर्ड उपलब्ध नहीं है।</td></tr>`;
-    return;
-  }
-  purchaseHistory.forEach(p => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td style="color:var(--text-muted); font-weight:600;">${p.dateStr}</td>
-      <td style="text-align:left; font-weight:700;">${p.productName}</td>
-      <td>${p.supplier}</td>
-      <td style="font-weight:800; color:var(--primary);">${p.qty} ${p.unit}</td>
-      <td>₹${p.rate}</td>
-      <td style="font-weight:800; color:var(--accent-orange);">₹${(p.totalCost || 0).toFixed(2)}</td>
-      <td><button class="action-btn edit" onclick="editPurchaseRecord(${p.id})">✎ सुधार करें</button></td>
-    `;
-    tbody.appendChild(tr);
-  });
-}
-
 // ==============================================
-// 8. PRINT & CHECKOUT
+// 10. PRINT & CHECKOUT
 // ==============================================
 function generatePrintHTML(order, mode) {
   let rowsHtml = '';
@@ -1053,7 +1169,9 @@ function reprintOrder(billNo, mode) {
   }
 }
 
-// Mandi Re-Order List
+// ==============================================
+// 11. MANDI RE-ORDER & UDHAR KHATA
+// ==============================================
 function renderMandiOrderTable() {
   const tbody = document.getElementById('mandiOrderTableBody');
   if (!tbody) return;
@@ -1095,7 +1213,6 @@ function shareMandiListWhatsApp() {
   window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
 }
 
-// Udhar / Khata System
 function openKhataModal() {
   if (currentBill.length === 0) {
     alert('बिल खाली है! कृपया पहले सामान चुनें।');
@@ -1205,7 +1322,9 @@ function filterKhataTable() {
   renderKhataTable(khataLedger.filter(k => k.name.toLowerCase().includes(q) || (k.phone && k.phone.includes(q))));
 }
 
-// Sales Report
+// ==============================================
+// 12. SALES REPORT & PRODUCT CREATION
+// ==============================================
 function renderSalesReport() {
   const filterInput = document.getElementById('salesFilterDate');
   if (filterInput && !filterInput.value) filterInput.value = getTodayKey();
